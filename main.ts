@@ -1,4 +1,4 @@
-//% color=#FF6600 icon="\uf1b9" block="AS BIT"
+//% color=#FF6600 icon="\uf1b9" block="anwar"
 namespace asbit {
 
     const LEFT_MOTOR_SPEED_PIN = AnalogPin.P16
