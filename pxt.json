@@ -1,10 +1,9 @@
 {
   "name": "asbit",
   "version": "0.0.1",
-  "description": "AS BIT robot extension with motors, RGB LEDs, NeoPixel, and buzzer. Designed by Hamdi Billel at Aissaoui School Robotics Centre.",
+  "description": "AS BIT robot minimal extension: motor control block.",
   "dependencies": {
-    "core": "*",
-    "neopixel": "*"
+    "core": "*"
   },
   "files": [
     "main.ts",
