@@ -1,4 +1,4 @@
-//% color=#426300 icon="\uf1b9" block="AS BIT"
+//% color=#FA5500 icon="\uf1b9" block="AS BIT"
 namespace asbit {
 
     // ---------------- PINS ----------------
@@ -18,11 +18,8 @@ namespace asbit {
     const IR_MIDDLE = AnalogPin.P1
     const IR_RIGHT = AnalogPin.P2
 
-    const NEOPIXEL_PIN = DigitalPin.P6
-    const NEOPIXEL_LEN = 7
-    let strip: neopixel.Strip = null
-
     const BUZZER_PIN = DigitalPin.P9
+    pins.analogSetPitchPin(BUZZER_PIN)
 
     // ---------------- MOTOR ----------------
     export enum MotorDir {
@@ -32,7 +29,7 @@ namespace asbit {
         Backward
     }
 
-    // Tall motor block
+    // Tall single-line motor control block
     //% blockId=asbit_motor_control block="left motor %leftDir at %leftSpeed \\% | right motor %rightDir at %rightSpeed \\%"
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
@@ -159,61 +156,7 @@ namespace asbit {
         }
     }
 
-    // ---------------- NEO PIXEL ----------------
-    export enum NeoPixelColor {
-        Red,
-        Green,
-        Blue,
-        Yellow,
-        Cyan,
-        Magenta,
-        White,
-        Off
-    }
-
-    function ensureStrip(): void {
-        if (!strip) {
-            strip = neopixel.create(NEOPIXEL_PIN, NEOPIXEL_LEN, NeoPixelMode.RGB)
-        }
-    }
-
-    //% blockId=asbit_neopixel_set_single block="set NeoPixel LED %index color to %color"
-    //% index.min=0 index.max=6
-    //% group="NeoPixel"
-    export function setNeoPixelSingle(index: number, color: NeoPixelColor): void {
-        ensureStrip()
-        switch (color) {
-            case NeoPixelColor.Red: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Red)); break
-            case NeoPixelColor.Green: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Green)); break
-            case NeoPixelColor.Blue: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Blue)); break
-            case NeoPixelColor.Yellow: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Yellow)); break
-            case NeoPixelColor.Cyan: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Cyan)); break
-            case NeoPixelColor.Magenta: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Magenta)); break
-            case NeoPixelColor.White: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.White)); break
-            case NeoPixelColor.Off: strip.setPixelColor(index, neopixel.colors(NeoPixelColors.Black)); break
-        }
-        strip.show()
-    }
-
-    //% blockId=asbit_neopixel_all block="set all NeoPixels color to %color"
-    //% group="NeoPixel"
-    export function setNeoPixelAll(color: NeoPixelColor): void {
-        ensureStrip()
-        let c = neopixel.colors(NeoPixelColors.Black)
-        switch (color) {
-            case NeoPixelColor.Red: c = neopixel.colors(NeoPixelColors.Red); break
-            case NeoPixelColor.Green: c = neopixel.colors(NeoPixelColors.Green); break
-            case NeoPixelColor.Blue: c = neopixel.colors(NeoPixelColors.Blue); break
-            case NeoPixelColor.Yellow: c = neopixel.colors(NeoPixelColors.Yellow); break
-            case NeoPixelColor.Cyan: c = neopixel.colors(NeoPixelColors.Cyan); break
-            case NeoPixelColor.Magenta: c = neopixel.colors(NeoPixelColors.Magenta); break
-            case NeoPixelColor.White: c = neopixel.colors(NeoPixelColors.White); break
-            case NeoPixelColor.Off: c = neopixel.colors(NeoPixelColors.Black); break
-        }
-        strip.showColor(c)
-    }
-
     // ---------------- BUZZER / MUSIC ----------------
     // Redirect music to buzzer pin automatically
-    pins.analogSetPitchPin(BUZZER_PIN)
+    // Music blocks now work on P9
 }
