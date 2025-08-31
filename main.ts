@@ -1,4 +1,4 @@
-//% color=#FF6600 icon="\uf1b9" block="AS BIT"
+//% color=#AA6600 icon="\uf1b9" block="AS BIT"
 namespace asbit {
 
     // ---------------- PINS ----------------
