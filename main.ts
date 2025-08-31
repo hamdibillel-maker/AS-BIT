@@ -1,8 +1,8 @@
 /**
  * AS BIT Robot Extension
- * Full support for motors, sensors, RGB, sound, Bluetooth, and more.
+ * Simplified, clean, and block-friendly.
  */
-//% color=#008000 icon="\uf1b9" block="AS BIT Robot"
+//% color=#2E8B57 icon="\uf1b9" block="AS BIT Robot"
 namespace asbit {
     // === Motor Pins ===
     const LEFT_MOTOR_FORWARD = DigitalPin.P13;
@@ -16,16 +16,17 @@ namespace asbit {
     const ULTRASONIC_TRIGGER = DigitalPin.P12;
     const ULTRASONIC_ECHO = DigitalPin.P11;
 
-    // === RGB & Sound ===
+    // === RGB Pin ===
     const RGB_PIN = DigitalPin.P8;
-    const BUZZER_PIN = DigitalPin.P0;
 
     // === Enums ===
     export enum CarDirection {
         Forward,
         Backward,
         Left,
-        Right
+        Right,
+        SpinLeft,
+        SpinRight
     }
 
     export enum LineSensor {
@@ -52,8 +53,9 @@ namespace asbit {
      */
     //% block="Car move %direction at speed %speed"
     //% speed.min=0 speed.max=100
+    //% speed.defl=80
     //% weight=90
-    export function car_run(direction: CarDirection, speed: number = 100): void {
+    export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
 
         switch (direction) {
@@ -85,6 +87,20 @@ namespace asbit {
                 pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 1);
                 break;
 
+            case CarDirection.SpinLeft:
+                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 0);
+                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 1);
+                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 1);
+                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 0);
+                break;
+
+            case CarDirection.SpinRight:
+                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 1);
+                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 0);
+                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 1);
+                break;
+
             default:
                 car_stop();
                 break;
@@ -103,29 +119,29 @@ namespace asbit {
         pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 0);
     }
 
-    // === Line Sensor ===
+    // === Sensor Reading (Analog & Digital) ===
     /**
-     * Read line sensor value
-     * @param sensor Left or Right sensor
+     * Read line sensor analog value
+     * @param sensor Left or Right
      */
-    //% block="Read %sensor line sensor"
+    //% block="Read %sensor line sensor (analog)"
     //% weight=85
-    export function readLineSensor(sensor: LineSensor): number {
+    export function readLineAnalog(sensor: LineSensor): number {
         const pin = sensor === LineSensor.Left ? LINE_SENSOR_LEFT : LINE_SENSOR_RIGHT;
         return pins.analogReadPin(pin);
     }
 
     /**
-     * Check if line is detected (digital threshold)
+     * Read line sensor as digital (black/white)
      * @param sensor Left or Right
-     * @param threshold Threshold value (0-1023), eg: 500
+     * @param threshold Threshold value 0-1023, eg: 500
      */
     //% block="Is %sensor line detected? (threshold %threshold)"
     //% threshold.min=0 threshold.max=1023
     //% threshold.defl=500
     //% weight=84
     export function isLineDetected(sensor: LineSensor, threshold: number = 500): boolean {
-        return readLineSensor(sensor) > threshold;
+        return readLineAnalog(sensor) > threshold;
     }
 
     // === Ultrasonic Sensor ===
@@ -143,10 +159,10 @@ namespace asbit {
         pins.digitalWritePin(ULTRASONIC_TRIGGER, 0);
 
         const d = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
-        return Math.round(d / 58);  // Convert to cm
+        return Math.round(d / 58);
     }
 
-    // === RGB LED (NeoPixel) ===
+    // === RGB LED (NeoPixel) - Only Predefined Colors ===
     let strip: neopixel.Strip = null;
     function getStrip(): neopixel.Strip {
         if (!strip) {
@@ -156,7 +172,7 @@ namespace asbit {
     }
 
     /**
-     * Set RGB color
+     * Set RGB to predefined color
      * @param color Choose a color
      */
     //% block="Set RGB to %color"
@@ -165,23 +181,6 @@ namespace asbit {
         const c = colorToRGB(color);
         const s = getStrip();
         s.setPixelColor(0, c);
-        s.show();
-    }
-
-    /**
-     * Set RGB to custom color
-     * @param red 0-255
-     * @param green 0-255
-     * @param blue 0-255
-     */
-    //% block="Set RGB red %red green %green blue %blue"
-    //% red.min=0 red.max=255
-    //% green.min=0 green.max=255
-    //% blue.min=0 blue.max=255
-    //% weight=74
-    export function setRGBRaw(red: number, green: number, blue: number): void {
-        const s = getStrip();
-        s.setPixelColor(0, neopixel.rgb(red, green, blue));
         s.show();
     }
 
@@ -198,49 +197,22 @@ namespace asbit {
         }
     }
 
-    // === Buzzer / Sound ===
-    /**
-     * Play tone on buzzer
-     * @param frequency Frequency in Hz, eg: 500
-     * @param duration Duration in ms, eg: 500
-     */
-    //% block="Play tone %frequency Hz for %duration ms"
-    //% frequency.min=100 frequency.max=2000
-    //% duration.min=10 duration.defl=500
-    //% weight=60
-    export function playTone(frequency: number, duration: number): void {
-        pins.analogSetPitchPin(BUZZER_PIN);
-        music.ringTone(frequency);
-        basic.pause(duration);
-        music.stopAllSounds();
-    }
-
-    /**
-     * Beep once
-     */
-    //% block="Beep!"
-    //% weight=59
-    export function beep(): void {
-        playTone(800, 200);
-    }
-
-    // === Bluetooth Serial (Example) ===
+    // === Bluetooth Serial ===
     /**
      * Send message over Bluetooth
      * @param msg Message to send
      */
     //% block="Send Bluetooth: %msg"
-    //% weight=50
+    //% weight=60
     export function sendBluetooth(msg: string): void {
         serial.writeLine(msg);
     }
 
     /**
-     * On Bluetooth data received
-     * @param handler Code to run when data is received
+     * Run code when Bluetooth data is received
      */
     //% block="On Bluetooth received"
-    //% weight=49
+    //% weight=59
     export function onBluetoothReceived(handler: () => void) {
         serial.onDataReceived(serial.delimiters(Delimiters.NewLine), handler);
     }
