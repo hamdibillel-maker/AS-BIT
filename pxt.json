@@ -8,7 +8,6 @@
   "dependencies": {
     "core": "*",
     "neopixel": "github:microsoft/pxt-neopixel",
-    "bluetooth": "github:microsoft/pxt-microbit-bluetooth"
   },
   "public": true,
   "supportedTargets": ["microbit"]
