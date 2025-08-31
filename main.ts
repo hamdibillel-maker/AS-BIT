@@ -1,7 +1,8 @@
 // Define the namespace for the AS BIT extension.
 // The block defines the name that appears in the MakeCode block category.
 // The color and icon properties customize the category's appearance.
-//% color="#FF9900" icon="\uf1b6" block="AS BIT"
+// I have updated the icon to a car symbol from the Font Awesome library.
+//% color="#FF9900" icon="\uf1b9" block="AS BIT"
 namespace asbit {
     
     // Motor pin definitions based on assumptions.
