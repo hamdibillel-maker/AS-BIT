@@ -1,26 +1,23 @@
-// Tests the basic functionality of the AS BIT extension blocks.
+// Demo program for AS BIT extension
 
-// This test script is run in the simulator to ensure the blocks function as expected.
+basic.showString("AS BIT")
+
+input.onButtonPressed(Button.A, function () {
+    asbit.move(asbit.Motors.Forward, 80)
+})
+
+input.onButtonPressed(Button.B, function () {
+    asbit.move(asbit.Motors.Backward, 80)
+})
+
+input.onButtonPressed(Button.AB, function () {
+    asbit.setRGBDigital(asbit.RGB_Colors.Red)
+    asbit.playTone(440, 500)
+})
+
 basic.forever(function () {
-    // Test the motor control blocks.
-    asbit.move(asbit.Direction.Forward, 50);
-    basic.pause(2000); // Wait for 2 seconds
-    asbit.stop();
-    basic.pause(1000); // Wait for 1 second
-
-    asbit.move(asbit.Direction.Left, 75);
-    basic.pause(2000); // Wait for 2 seconds
-    asbit.stop();
-    basic.pause(1000); // Wait for 1 second
-
-    // Test the sensor reading block.
-    // The simulator will show "0" since there's no real sensor, but this
-    // verifies the block's existence and ability to return a value.
-    let leftSensorValue = asbit.readSensor(asbit.Sensor.Left);
-    let rightSensorValue = asbit.readSensor(asbit.Sensor.Right);
-    
-    serial.writeLine("Left Sensor value: " + leftSensorValue);
-    serial.writeLine("Right Sensor value: " + rightSensorValue);
-
-    basic.pause(2000); // Wait for 2 seconds
-});
+    if (input.logoIsPressed()) {
+        asbit.move(asbit.Motors.Stop, 0)
+        asbit.setRGBDigital(asbit.RGB_Colors.Off)
+    }
+})
