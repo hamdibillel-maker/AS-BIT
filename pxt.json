@@ -1,13 +1,14 @@
 {
-  "name": "ttthgfh"
+  "name": "ttthgfh",
   "version": "0.0.4",
-  "description": "AS BIT robot extension with car control, sensors, RGB, and NeoPixel.",
+  "description": "AS BIT robot extension with car control, sensors, RGB, NeoPixel, and Bluetooth.",
   "files": [
     "main.ts"
   ],
   "dependencies": {
     "core": "*",
-    "neopixel": "github:microsoft/pxt-neopixel"
+    "neopixel": "github:microsoft/pxt-neopixel",
+    "bluetooth": "github:microsoft/pxt-microbit-bluetooth"
   },
   "public": true,
   "supportedTargets": ["microbit"]
