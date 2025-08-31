@@ -1,4 +1,4 @@
-//% color=#456800 icon="\uf1b9" block="AS BIT"
+//% color=#426300 icon="\uf1b9" block="AS BIT"
 namespace asbit {
 
     // ---------------- PINS ----------------
@@ -32,7 +32,7 @@ namespace asbit {
         Backward
     }
 
-    // Single tall motor block
+    // Tall motor block
     //% blockId=asbit_motor_control block="left motor %leftDir at %leftSpeed \\% | right motor %rightDir at %rightSpeed \\%"
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
@@ -52,19 +52,12 @@ namespace asbit {
 
     // ---------------- CAR MOVEMENT ----------------
     export enum MotorMove {
-        //% block="forward"
         Forward,
-        //% block="backward"
         Backward,
-        //% block="left"
         Left,
-        //% block="right"
         Right,
-        //% block="spin left"
         SpinLeft,
-        //% block="spin right"
         SpinRight,
-        //% block="stop"
         Stop
     }
 
@@ -93,14 +86,12 @@ namespace asbit {
 
     // ---------------- IR SENSORS ----------------
     export enum IRSensor {
-        //% block="left"
         Left,
-        //% block="middle"
         Middle,
-        //% block="right"
         Right
     }
 
+    // Analog read
     //% blockId=asbit_read_ir_analog block="read %sensor IR analog"
     //% group="Sensors"
     export function readIRAnalog(sensor: IRSensor): number {
@@ -112,15 +103,17 @@ namespace asbit {
         return 0
     }
 
+    // Digital read (threshold)
     //% blockId=asbit_read_ir_digital block="read %sensor IR digital"
     //% group="Sensors"
     export function readIRDigital(sensor: IRSensor): number {
-        switch (sensor) {
-            case IRSensor.Left: return pins.digitalReadPin(<DigitalPin><number>IR_LEFT)
-            case IRSensor.Middle: return pins.digitalReadPin(<DigitalPin><number>IR_MIDDLE)
-            case IRSensor.Right: return pins.digitalReadPin(<DigitalPin><number>IR_RIGHT)
+        let val = 0
+        switch(sensor){
+            case IRSensor.Left: val = pins.analogReadPin(IR_LEFT); break
+            case IRSensor.Middle: val = pins.analogReadPin(IR_MIDDLE); break
+            case IRSensor.Right: val = pins.analogReadPin(IR_RIGHT); break
         }
-        return 0
+        return val > 512 ? 1 : 0
     }
 
     // ---------------- ULTRASONIC ----------------
@@ -138,21 +131,13 @@ namespace asbit {
 
     // ---------------- DIGITAL RGB LED ----------------
     export enum RGBColors {
-        //% block="red"
         Red,
-        //% block="green"
         Green,
-        //% block="blue"
         Blue,
-        //% block="yellow"
         Yellow,
-        //% block="cyan"
         Cyan,
-        //% block="magenta"
         Magenta,
-        //% block="white"
         White,
-        //% block="off"
         Off
     }
 
@@ -176,21 +161,13 @@ namespace asbit {
 
     // ---------------- NEO PIXEL ----------------
     export enum NeoPixelColor {
-        //% block="red"
         Red,
-        //% block="green"
         Green,
-        //% block="blue"
         Blue,
-        //% block="yellow"
         Yellow,
-        //% block="cyan"
         Cyan,
-        //% block="magenta"
         Magenta,
-        //% block="white"
         White,
-        //% block="off"
         Off
     }
 
