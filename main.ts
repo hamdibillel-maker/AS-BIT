@@ -117,3 +117,11 @@ namespace asbit {
         music.playTone(frequency, duration);
     }
 }
+// This is the program logic that uses the blocks defined above.
+basic.forever(function () {
+    if (input.buttonIsPressed(Button.P0)) {
+        asbit.move(asbit.Motors.Forward, 1000)
+    }
+})
+
+basic.showString("C")
