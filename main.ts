@@ -27,13 +27,7 @@ namespace ASBIT {
 
     // --- Global Variables ---
     // A NeoPixel strip object, initialized to pin P6 with 7 pixels.
-    let neopixelStrip: neopixel.Strip = null;
-    // The neopixel strip is initialized here since the user wants no init block.
-    if (!neopixelStrip) {
-        neopixelStrip = neopixel.create(NEOPIXEL_PIN, 7, NeoPixelMode.RGB);
-        neopixelStrip.clear();
-        neopixelStrip.show();
-    }
+    let neopixelStrip = neopixel.create(NEOPIXEL_PIN, 7, NeoPixelMode.RGB);
 
     /**
      * Enum for motor control directions.
