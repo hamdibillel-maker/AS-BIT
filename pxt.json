@@ -10,18 +10,5 @@
     "neopixel": "github:microsoft/pxt-neopixel"
   },
   "public": true,
-  "supportedTargets": ["microbit"],
-  "license": "MIT",
-  "repository": "github:hamdibillel-maker/AS-BIT",
-  "sim": {
-    "left": 140,
-    "top": 100,
-    "width": 184,
-    "height": 128
-  },
-  "blockly": {
-    "category": {
-      "colour": 90
-    }
-  }
+  "supportedTargets": ["microbit"]
 }
