@@ -19,10 +19,21 @@ namespace ASBIT {
     const BLUE_LED_PIN = DigitalPin.P3;
     const GREEN_LED_PIN = DigitalPin.P4;
     const RED_LED_PIN = DigitalPin.P5;
+    const IR_LEFT_PIN = DigitalPin.P0;
+    const IR_MIDDLE_PIN = DigitalPin.P1;
+    const IR_RIGHT_PIN = DigitalPin.P2;
+    const TRIG_PIN = DigitalPin.P8;
+    const ECHO_PIN = DigitalPin.P12;
 
     // --- Global Variables ---
     // A NeoPixel strip object, initialized to pin P6 with 7 pixels.
     let neopixelStrip: neopixel.Strip = null;
+    // The neopixel strip is initialized here since the user wants no init block.
+    if (!neopixelStrip) {
+        neopixelStrip = neopixel.create(NEOPIXEL_PIN, 7, NeoPixelMode.RGB);
+        neopixelStrip.clear();
+        neopixelStrip.show();
+    }
 
     /**
      * Enum for motor control directions.
@@ -42,6 +53,16 @@ namespace ASBIT {
         SpinRight,
         //% block="stop"
         Stop,
+    }
+
+    /**
+     * Enum for the direction of a single wheel.
+     */
+    export enum WheelDirection {
+        //% block="forward"
+        Forward,
+        //% block="backward"
+        Backward,
     }
 
     /**
@@ -67,6 +88,18 @@ namespace ASBIT {
     }
 
     /**
+     * Enum for IR sensor names.
+     */
+    export enum IRSensor {
+        //% block="left"
+        Left,
+        //% block="middle"
+        Middle,
+        //% block="right"
+        Right,
+    }
+
+    /**
      * Enum for sensor reading types (analog or digital).
      */
     export enum ReadType {
@@ -74,20 +107,6 @@ namespace ASBIT {
         Analog,
         //% block="digital"
         Digital,
-    }
-
-    // --- Initialization Block ---
-    // This block is for initial setup. It sets up the NeoPixel strip and the music output pin.
-    //% block="initialize AS BIT"
-    //% subcategory="Car Control"
-    export function initializeASBIT(): void {
-        // Set up the NeoPixel strip with 7 LEDs on pin P6.
-        if (!neopixelStrip) {
-            neopixelStrip = neopixel.create(NEOPIXEL_PIN, 7, NeoPixelMode.RGB);
-        }
-        // Set the music output pin to P9 for the buzzer.
-        music.setVolume(255);
-        music.setPlayTone(BUZZER_PIN);
     }
 
     // --- Car Control Blocks ---
@@ -138,19 +157,21 @@ namespace ASBIT {
     }
 
     /**
-     * Controls each motor independently with a specified speed.
-     * @param leftSpeed Speed for the left motor, from -100 (reverse) to 100 (forward).
-     * @param rightSpeed Speed for the right motor, from -100 (reverse) to 100 (forward).
+     * Controls each motor independently with a specified speed and direction.
+     * @param leftDir The direction for the left motor.
+     * @param leftSpeed Speed for the left motor, from 0 to 100.
+     * @param rightDir The direction for the right motor.
+     * @param rightSpeed Speed for the right motor, from 0 to 100.
      */
-    //% block="set left wheel speed $leftSpeed right wheel speed $rightSpeed"
-    //% leftSpeed.min=-100 leftSpeed.max=100
-    //% rightSpeed.min=-100 rightSpeed.max=100
+    //% block="set left wheel direction $leftDir speed $leftSpeed || and right wheel direction $rightDir speed $rightSpeed"
+    //% leftSpeed.min=0 leftSpeed.max=100
+    //% rightSpeed.min=0 rightSpeed.max=100
     //% subcategory="Car Control"
-    export function setWheelsSpeed(leftSpeed: number, rightSpeed: number): void {
-        const leftPwmSpeed = Math.map(Math.abs(leftSpeed), 0, 100, 0, 1023);
-        const rightPwmSpeed = Math.map(Math.abs(rightSpeed), 0, 100, 0, 1023);
+    export function setWheelsSpeed(leftDir: WheelDirection, leftSpeed: number, rightDir: WheelDirection, rightSpeed: number): void {
+        const leftPwmSpeed = Math.map(leftSpeed, 0, 100, 0, 1023);
+        const rightPwmSpeed = Math.map(rightSpeed, 0, 100, 0, 1023);
 
-        if (leftSpeed >= 0) {
+        if (leftDir === WheelDirection.Forward) {
             pins.analogWritePin(LEFT_MOTOR_FORWARD_PIN, leftPwmSpeed);
             pins.analogWritePin(LEFT_MOTOR_REVERSE_PIN, 0);
         } else {
@@ -158,7 +179,7 @@ namespace ASBIT {
             pins.analogWritePin(LEFT_MOTOR_REVERSE_PIN, leftPwmSpeed);
         }
 
-        if (rightSpeed >= 0) {
+        if (rightDir === WheelDirection.Forward) {
             pins.analogWritePin(RIGHT_MOTOR_FORWARD_PIN, rightPwmSpeed);
             pins.analogWritePin(RIGHT_MOTOR_REVERSE_PIN, 0);
         } else {
@@ -166,8 +187,6 @@ namespace ASBIT {
             pins.analogWritePin(RIGHT_MOTOR_REVERSE_PIN, rightPwmSpeed);
         }
     }
-
-    // --- LED Blocks ---
 
     /**
      * Sets the state of the digital RGB LEDs (red, green, blue).
@@ -220,42 +239,22 @@ namespace ASBIT {
         }
     }
 
-    /**
-     * Sets the color of the NeoPixel strip at the specified index.
-     * @param index The index of the NeoPixel (0-6).
-     * @param color The color to set (e.g., neopixel.colors(neopixel.rgb(255, 0, 0))).
-     */
-    //% block="set NeoPixel $index to color $color"
-    //% index.min=0 index.max=6
-    //% subcategory="Car Control"
-    export function setNeoPixelColor(index: number, color: number): void {
-        if (!neopixelStrip) {
-            initializeASBIT();
-        }
-        neopixelStrip.setPixelColor(index, color);
-        neopixelStrip.show();
-    }
-
     // --- Sensor Blocks ---
 
     /**
      * Gets the distance from the ultrasonic sensor.
-     * @param trigPin The trigger pin of the sensor (P8).
-     * @param echoPin The echo pin of the sensor (P12).
      * @returns The distance in centimeters.
      */
-    //% block="ultrasonic distance TRIG $trigPin ECHO $echoPin cm"
-    //% trigPin.defl=P8
-    //% echoPin.defl=P12
+    //% block="ultrasonic distance cm"
     //% subcategory="Sensors"
-    export function ultrasonicDistance(trigPin: DigitalPin, echoPin: DigitalPin): number {
-        pins.digitalWritePin(trigPin, 0);
+    export function ultrasonicDistance(): number {
+        pins.digitalWritePin(TRIG_PIN, 0);
         basic.pause(2);
-        pins.digitalWritePin(trigPin, 1);
+        pins.digitalWritePin(TRIG_PIN, 1);
         basic.pause(10);
-        pins.digitalWritePin(trigPin, 0);
+        pins.digitalWritePin(TRIG_PIN, 0);
 
-        const duration = pins.pulseIn(echoPin, PulseValue.High, 25000);
+        const duration = pins.pulseIn(ECHO_PIN, PulseValue.High, 25000);
         let distance = duration / 58;
 
         if (distance > 400) {
@@ -265,15 +264,27 @@ namespace ASBIT {
     }
 
     /**
-     * Reads a value from a specified pin, either analog or digital.
-     * @param pin The pin to read from (P0, P1, P2).
+     * Reads a value from the specified IR sensor.
+     * @param sensor The IR sensor to read from.
      * @param type The type of reading to perform (analog or digital).
      * @returns The sensor reading value.
      */
-    //% block="read pin $pin as $type"
-    //% pin.defl=P0
+    //% block="read $sensor IR sensor as $type"
     //% subcategory="Sensors"
-    export function readSensor(pin: DigitalPin, type: ReadType): number {
+    export function readIRSensor(sensor: IRSensor, type: ReadType): number {
+        let pin: DigitalPin;
+        switch (sensor) {
+            case IRSensor.Left:
+                pin = IR_LEFT_PIN;
+                break;
+            case IRSensor.Middle:
+                pin = IR_MIDDLE_PIN;
+                break;
+            case IRSensor.Right:
+                pin = IR_RIGHT_PIN;
+                break;
+        }
+
         if (type === ReadType.Digital) {
             return pins.digitalReadPin(pin);
         } else {
