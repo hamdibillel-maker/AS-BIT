@@ -1,6 +1,6 @@
 {
-  "name": "asbit",
-  "version": "0.0.1",
+  "name": "fghfghfghfghf",
+  "version": "0.0.2",
   "description": "AS BIT robot extension with car control, sensors, RGB, and NeoPixel.",
   "files": [
     "main.ts"
