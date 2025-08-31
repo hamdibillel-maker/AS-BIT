@@ -1,15 +1,13 @@
 {
-    "name": "asbit-robot",
-    "version": "0.0.1",
-    "description": "An extension for the AS BIT robot designed by Hamdi Billel.",
-    "license": "MIT",
-    "dependencies": {
-        "core": "*"
-    },
-    "files": [
-        "main.ts",
-        "test.ts",
-        "README.md"
-    ],
-    "public": true
+  "name": "asbit",
+  "version": "0.0.1",
+  "description": "AS BIT robot extension with motors, RGB LEDs, NeoPixel, and buzzer. Designed by Hamdi Billel at Aissaoui School Robotics Centre.",
+  "dependencies": {
+    "core": "*",
+    "neopixel": "*"
+  },
+  "files": [
+    "main.ts",
+    "test.ts"
+  ]
 }
