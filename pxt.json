@@ -1,10 +1,15 @@
 {
-  "name": "linefollower-robot",
-  "version": "0.0.1",
-  "description": "Smart micro:bit robot with PID line following, Bluetooth, NeoPixel, buzzer, and sensors. Designed by Hamdi Billel at Aissaoui School Robotics Centre.",
-  "license": "MIT",
-  "files": [
-    "main.ts"
-  ],
-  "public": true
+    "name": "asbit-robot",
+    "version": "0.0.1",
+    "description": "An extension for the AS BIT robot designed by Hamdi Billel.",
+    "license": "MIT",
+    "dependencies": {
+        "core": "*"
+    },
+    "files": [
+        "main.ts",
+        "test.ts",
+        "README.md"
+    ],
+    "public": true
 }
