@@ -22,11 +22,15 @@ namespace asbit {
         const leftDir = leftSpeed > 0 ? 1 : 0;
         const rightDir = rightSpeed > 0 ? 1 : 0;
 
+        // Scale the speed from 0-100 to 0-1023
+        const scaledLeftSpeed = Math.abs(leftSpeed * 10.23);
+        const scaledRightSpeed = Math.abs(rightSpeed * 10.23);
+
         pins.digitalWritePin(LEFT_MOTOR_DIR_PIN, leftDir);
         pins.digitalWritePin(RIGHT_MOTOR_DIR_PIN, rightDir);
 
-        pins.analogWritePin(LEFT_MOTOR_SPEED_PIN, Math.abs(leftSpeed));
-        pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, Math.abs(rightSpeed));
+        pins.analogWritePin(LEFT_MOTOR_SPEED_PIN, scaledLeftSpeed);
+        pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, scaledRightSpeed);
     }
 
     // Define directions as an enum for easy selection in blocks
@@ -46,10 +50,10 @@ namespace asbit {
     /**
      * Controls the movement of the AS BIT robot.
      * @param direction The direction to move (forward, backward, left, right, stop).
-     * @param speed The motor speed from 0 to 1023.
+     * @param speed The motor speed from 0 to 100.
      */
     //% blockId="asbit_move" block="move %direction at speed %speed"
-    //% speed.min=0 speed.max=1023
+    //% speed.min=0 speed.max=100
     //% weight=100 blockGap=8
     export function move(direction: Motors, speed: number): void {
         switch (direction) {
@@ -72,17 +76,17 @@ namespace asbit {
     }
 
     /**
-     * Sets the color of the onboard RGB LEDs.
+     * Sets the color of the onboard RGB LEDs using analog signals (PWM).
      * @param red The red value from 0 to 255.
      * @param green The green value from 0 to 255.
      * @param blue The blue value from 0 to 255.
      */
-    //% blockId="asbit_set_rgb" block="set RGB to R:%red G:%green B:%blue"
+    //% blockId="asbit_set_rgb_analog" block="set RGB (analog) to R:%red G:%green B:%blue"
     //% red.min=0 red.max=255
     //% green.min=0 green.max=255
     //% blue.min=0 blue.max=255
     //% weight=90 blockGap=8
-    export function setRGB(red: number, green: number, blue: number): void {
+    export function setRGBAnalog(red: number, green: number, blue: number): void {
         pins.analogWritePin(RGB_RED_PIN, red * 4);
         pins.analogWritePin(RGB_GREEN_PIN, green * 4);
         pins.analogWritePin(RGB_BLUE_PIN, blue * 4);
@@ -116,12 +120,101 @@ namespace asbit {
     export function playTone(frequency: number, duration: number): void {
         music.playTone(frequency, duration);
     }
+    
+    // Define a new enum for digital RGB colors
+    export enum RGB_Colors {
+        //% block="red"
+        Red,
+        //% block="green"
+        Green,
+        //% block="blue"
+        Blue,
+        //% block="yellow"
+        Yellow,
+        //% block="magenta"
+        Magenta,
+        //% block="cyan"
+        Cyan,
+        //% block="white"
+        White,
+        //% block="off"
+        Off
+    }
+
+    /**
+     * Sets the color of the onboard RGB LEDs using digital signals.
+     * @param color The color to set.
+     */
+    //% blockId="asbit_set_rgb_digital" block="set RGB (digital) to %color"
+    //% weight=90 blockGap=8
+    export function setRGBDigital(color: RGB_Colors): void {
+        // Turn all pins off first to ensure no old color is left on
+        pins.digitalWritePin(RGB_RED_PIN, 0);
+        pins.digitalWritePin(RGB_GREEN_PIN, 0);
+        pins.digitalWritePin(RGB_BLUE_PIN, 0);
+
+        switch (color) {
+            case RGB_Colors.Red:
+                pins.digitalWritePin(RGB_RED_PIN, 1);
+                break;
+            case RGB_Colors.Green:
+                pins.digitalWritePin(RGB_GREEN_PIN, 1);
+                break;
+            case RGB_Colors.Blue:
+                pins.digitalWritePin(RGB_BLUE_PIN, 1);
+                break;
+            case RGB_Colors.Yellow:
+                pins.digitalWritePin(RGB_RED_PIN, 1);
+                pins.digitalWritePin(RGB_GREEN_PIN, 1);
+                break;
+            case RGB_Colors.Magenta:
+                pins.digitalWritePin(RGB_RED_PIN, 1);
+                pins.digitalWritePin(RGB_BLUE_PIN, 1);
+                break;
+            case RGB_Colors.Cyan:
+                pins.digitalWritePin(RGB_GREEN_PIN, 1);
+                pins.digitalWritePin(RGB_BLUE_PIN, 1);
+                break;
+            case RGB_Colors.White:
+                pins.digitalWritePin(RGB_RED_PIN, 1);
+                pins.digitalWritePin(RGB_GREEN_PIN, 1);
+                pins.digitalWritePin(RGB_BLUE_PIN, 1);
+                break;
+            case RGB_Colors.Off:
+                // No pins are set to 1, so they all remain off
+                break;
+        }
+    }
 }
+
+// Global variable to keep track of the current color index
+let currentColorIndex = 0;
+
 // This is the program logic that uses the blocks defined above.
 basic.forever(function () {
+    // Check for motor control buttons
     if (input.buttonIsPressed(Button.P0)) {
-        asbit.move(asbit.Motors.Forward, 1000)
+        asbit.move(asbit.Motors.Forward, 100)
+    } else if (input.buttonIsPressed(Button.P1)) {
+        asbit.move(asbit.Motors.Backward, 100)
+    } else if (input.buttonIsPressed(Button.P2)) {
+        asbit.move(asbit.Motors.Stop, 0)
+    } else {
+        asbit.move(asbit.Motors.Stop, 0)
     }
 })
 
+// Event handler for the A button press to change colors
+input.onButtonPressed(Button.A, function () {
+    // Cycle through the colors in the enum
+    currentColorIndex = (currentColorIndex + 1) % asbit.RGB_Colors.Off;
+    asbit.setRGBDigital(currentColorIndex);
+})
+
+// Event handler for the B button press to turn lights off
+input.onButtonPressed(Button.B, function () {
+    asbit.setRGBDigital(asbit.RGB_Colors.Off);
+})
+
+// Display "C" on start to indicate the program is running.
 basic.showString("C")
