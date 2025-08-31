@@ -1,6 +1,6 @@
 {
   "name": "gfhfhft",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "AS BIT robot minimal extension: motor control block.",
   "dependencies": {
     "core": "*"
