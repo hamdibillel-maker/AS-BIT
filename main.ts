@@ -1,27 +1,19 @@
-//% color=#FA5500 icon="\uf1b9" block="AS BIT"
+//% color="#0066CC" weight=20 icon="\uf1b9" block="AS BIT"
 namespace asbit {
 
-    // ---------------- PINS ----------------
-    const LEFT_MOTOR_SPEED_PIN = AnalogPin.P16
+    // --- MOTOR PINS ---
     const LEFT_MOTOR_DIR_PIN = DigitalPin.P15
-    const RIGHT_MOTOR_SPEED_PIN = AnalogPin.P14
+    const LEFT_MOTOR_SPEED_PIN = DigitalPin.P16
     const RIGHT_MOTOR_DIR_PIN = DigitalPin.P13
+    const RIGHT_MOTOR_SPEED_PIN = DigitalPin.P14
 
-    const TRIG_PIN = DigitalPin.P8
-    const ECHO_PIN = DigitalPin.P12
-
-    const RGB_RED_PIN = DigitalPin.P5
-    const RGB_GREEN_PIN = DigitalPin.P4
-    const RGB_BLUE_PIN = DigitalPin.P3
-
-    const IR_LEFT = AnalogPin.P0
-    const IR_MIDDLE = AnalogPin.P1
-    const IR_RIGHT = AnalogPin.P2
-
+    // --- BUZZER ---
     const BUZZER_PIN = DigitalPin.P9
-    pins.analogSetPitchPin(BUZZER_PIN)
 
-    // ---------------- MOTOR ----------------
+    // --- NEOPIXEL ---
+    let strip: neopixel.Strip = null
+
+    // --- MOTOR DIRECTIONS ---
     export enum MotorDir {
         //% block="forward"
         Forward,
@@ -29,11 +21,38 @@ namespace asbit {
         Backward
     }
 
-    // Tall single-line motor control block
-    //% blockId=asbit_motor_control block="left motor %leftDir at %leftSpeed \\% | right motor %rightDir at %rightSpeed \\%"
+    // --- RGB COLORS DIGITAL ---
+    export enum Colors {
+        //% block="red"
+        Red,
+        //% block="green"
+        Green,
+        //% block="blue"
+        Blue,
+        //% block="yellow"
+        Yellow,
+        //% block="magenta"
+        Magenta,
+        //% block="cyan"
+        Cyan,
+        //% block="white"
+        White,
+        //% block="off"
+        Off
+    }
+
+    // ---------------- MOTOR CONTROL -----------------
+    /**
+     * Control both left and right motors with speed and direction
+     * @param leftDir Direction of left motor
+     * @param leftSpeed Speed of left motor 0-100
+     * @param rightDir Direction of right motor
+     * @param rightSpeed Speed of right motor 0-100
+     */
+    //% blockId="asbit_motor_control" block="left motor %leftDir at %leftSpeed \\% | right motor %rightDir at %rightSpeed \\%"
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
-    //% group="Car Control"
+    //% weight=100 blockGap=8
     export function motorControl(
         leftDir: MotorDir, leftSpeed: number,
         rightDir: MotorDir, rightSpeed: number
@@ -47,116 +66,100 @@ namespace asbit {
         pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, Math.map(Math.abs(r), 0, 100, 0, 1023))
     }
 
-    // ---------------- CAR MOVEMENT ----------------
-    export enum MotorMove {
-        Forward,
-        Backward,
+    // ---------------- LINE SENSORS -----------------
+    export enum SensorPos {
+        //% block="left"
         Left,
+        //% block="right"
         Right,
-        SpinLeft,
-        SpinRight,
-        Stop
+        //% block="middle"
+        Middle
     }
 
-    //% blockId=asbit_move block="move %dir at %speed \\%"
-    //% speed.min=0 speed.max=100
-    //% group="Car Control"
-    export function move(dir: MotorMove, speed: number): void {
-        let left = 0
-        let right = 0
-        let displayText = ""
-        switch (dir) {
-            case MotorMove.Forward: left = speed; right = speed; displayText = "F"; break
-            case MotorMove.Backward: left = -speed; right = -speed; displayText = "B"; break
-            case MotorMove.Left: left = 0; right = speed; displayText = "L"; break
-            case MotorMove.Right: left = speed; right = 0; displayText = "R"; break
-            case MotorMove.SpinLeft: left = -speed; right = speed; displayText = "SL"; break
-            case MotorMove.SpinRight: left = speed; right = -speed; displayText = "SR"; break
-            case MotorMove.Stop: left = 0; right = 0; displayText = "S"; break
+    export enum SensorType {
+        //% block="digital"
+        Digital,
+        //% block="analog"
+        Analog
+    }
+
+    /**
+     * Read a line sensor
+     */
+    //% blockId="asbit_line_sensor" block="read %pos sensor as %type"
+    //% weight=90
+    export function readLineSensor(pos: SensorPos, type: SensorType): number {
+        let pin: AnalogPin | DigitalPin
+        switch (pos) {
+            case SensorPos.Left: pin = AnalogPin.P13; break
+            case SensorPos.Right: pin = AnalogPin.P14; break
+            case SensorPos.Middle: pin = AnalogPin.P2; break
         }
-        pins.digitalWritePin(LEFT_MOTOR_DIR_PIN, left >= 0 ? 1 : 0)
-        pins.digitalWritePin(RIGHT_MOTOR_DIR_PIN, right >= 0 ? 1 : 0)
-        pins.analogWritePin(LEFT_MOTOR_SPEED_PIN, Math.map(Math.abs(left), 0, 100, 0, 1023))
-        pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, Math.map(Math.abs(right), 0, 100, 0, 1023))
-        basic.showString(displayText)
+        if (type == SensorType.Digital)
+            return pins.digitalReadPin(pin)
+        else
+            return pins.analogReadPin(pin)
     }
 
-    // ---------------- IR SENSORS ----------------
-    export enum IRSensor {
-        Left,
-        Middle,
-        Right
-    }
-
-    // Analog read
-    //% blockId=asbit_read_ir_analog block="read %sensor IR analog"
-    //% group="Sensors"
-    export function readIRAnalog(sensor: IRSensor): number {
-        switch (sensor) {
-            case IRSensor.Left: return pins.analogReadPin(IR_LEFT)
-            case IRSensor.Middle: return pins.analogReadPin(IR_MIDDLE)
-            case IRSensor.Right: return pins.analogReadPin(IR_RIGHT)
-        }
-        return 0
-    }
-
-    // Digital read (threshold)
-    //% blockId=asbit_read_ir_digital block="read %sensor IR digital"
-    //% group="Sensors"
-    export function readIRDigital(sensor: IRSensor): number {
-        let val = 0
-        switch(sensor){
-            case IRSensor.Left: val = pins.analogReadPin(IR_LEFT); break
-            case IRSensor.Middle: val = pins.analogReadPin(IR_MIDDLE); break
-            case IRSensor.Right: val = pins.analogReadPin(IR_RIGHT); break
-        }
-        return val > 512 ? 1 : 0
-    }
-
-    // ---------------- ULTRASONIC ----------------
-    //% blockId=asbit_ultrasonic block="ultrasonic distance (cm)"
-    //% group="Sensors"
+    // ---------------- ULTRASONIC -----------------
+    /**
+     * Returns distance in cm from ultrasonic sensor
+     */
+    //% blockId="asbit_ultrasonic" block="ultrasonic distance(cm)"
+    //% weight=88
     export function ultrasonic(): number {
-        pins.digitalWritePin(TRIG_PIN, 0)
+        pins.setPull(DigitalPin.P16, PinPullMode.PullNone)
+        pins.digitalWritePin(DigitalPin.P16, 0)
         control.waitMicros(2)
-        pins.digitalWritePin(TRIG_PIN, 1)
+        pins.digitalWritePin(DigitalPin.P16, 1)
         control.waitMicros(10)
-        pins.digitalWritePin(TRIG_PIN, 0)
-        let d = pins.pulseIn(ECHO_PIN, PulseValue.High, 25000)
-        return Math.idiv(d, 58)
+        pins.digitalWritePin(DigitalPin.P16, 0)
+        let d = pins.pulseIn(DigitalPin.P15, PulseValue.High, 43200)
+        return Math.floor(d / 40)
     }
 
-    // ---------------- DIGITAL RGB LED ----------------
-    export enum RGBColors {
-        Red,
-        Green,
-        Blue,
-        Yellow,
-        Cyan,
-        Magenta,
-        White,
-        Off
-    }
+    // ---------------- RGB LED -----------------
+    /**
+     * Set onboard RGB LEDs (digital)
+     */
+    //% blockId="asbit_set_rgb" block="set RGB to %color"
+    //% weight=87
+    export function setRGB(color: Colors): void {
+        pins.digitalWritePin(DigitalPin.P3, 0)
+        pins.digitalWritePin(DigitalPin.P4, 0)
+        pins.digitalWritePin(DigitalPin.P5, 0)
 
-    //% blockId=asbit_rgb block="set RGB color to %color"
-    //% group="RGB Control"
-    export function setRGB(color: RGBColors) {
-        pins.digitalWritePin(RGB_RED_PIN, 0)
-        pins.digitalWritePin(RGB_GREEN_PIN, 0)
-        pins.digitalWritePin(RGB_BLUE_PIN, 0)
         switch (color) {
-            case RGBColors.Red: pins.digitalWritePin(RGB_RED_PIN, 1); break
-            case RGBColors.Green: pins.digitalWritePin(RGB_GREEN_PIN, 1); break
-            case RGBColors.Blue: pins.digitalWritePin(RGB_BLUE_PIN, 1); break
-            case RGBColors.Yellow: pins.digitalWritePin(RGB_RED_PIN, 1); pins.digitalWritePin(RGB_GREEN_PIN, 1); break
-            case RGBColors.Cyan: pins.digitalWritePin(RGB_GREEN_PIN, 1); pins.digitalWritePin(RGB_BLUE_PIN, 1); break
-            case RGBColors.Magenta: pins.digitalWritePin(RGB_RED_PIN, 1); pins.digitalWritePin(RGB_BLUE_PIN, 1); break
-            case RGBColors.White: pins.digitalWritePin(RGB_RED_PIN, 1); pins.digitalWritePin(RGB_GREEN_PIN, 1); pins.digitalWritePin(RGB_BLUE_PIN, 1); break
-            case RGBColors.Off: break
+            case Colors.Red: pins.digitalWritePin(DigitalPin.P5, 1); break
+            case Colors.Green: pins.digitalWritePin(DigitalPin.P4, 1); break
+            case Colors.Blue: pins.digitalWritePin(DigitalPin.P3, 1); break
+            case Colors.Yellow: pins.digitalWritePin(DigitalPin.P4, 1); pins.digitalWritePin(DigitalPin.P5, 1); break
+            case Colors.Magenta: pins.digitalWritePin(DigitalPin.P3, 1); pins.digitalWritePin(DigitalPin.P5, 1); break
+            case Colors.Cyan: pins.digitalWritePin(DigitalPin.P3, 1); pins.digitalWritePin(DigitalPin.P4, 1); break
+            case Colors.White: pins.digitalWritePin(DigitalPin.P3, 1); pins.digitalWritePin(DigitalPin.P4, 1); pins.digitalWritePin(DigitalPin.P5, 1); break
+            case Colors.Off: break
         }
     }
 
-    // ---------------- BUZZER / MUSIC ----------------
-    // Redirect music to buzzer pin automatically
-    // Music blocks now work on P9
+    // ---------------- MUSIC -----------------
+    /**
+     * Redirect music to buzzer pin P9
+     */
+    //% blockId="asbit_set_buzzer" block="set music pin to buzzer"
+    //% weight=86
+    export function setBuzzer(): void {
+        music.setBuiltInSpeakerEnabled(false)
+        pins.analogSetPitchPin(BUZZER_PIN)
+    }
+
+    // ---------------- NEOPIXEL -----------------
+    /**
+     * Initialize neopixel on pin6 internally
+     */
+    export function initNeoPixel(): neopixel.Strip {
+        if (!strip) {
+            strip = neopixel.create(DigitalPin.P6, 7, NeoPixelMode.RGB)
+        }
+        return strip
+    }
 }
