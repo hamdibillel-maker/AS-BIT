@@ -1,6 +1,7 @@
-//% color=#FF6600 icon="\uf1b9" block="anwar"
+//% color=#00AAFF icon="\uf1b9" block="AS BIT"
 namespace asbit {
 
+    // --- Pin definitions ---
     const LEFT_MOTOR_SPEED_PIN = AnalogPin.P16
     const LEFT_MOTOR_DIR_PIN = DigitalPin.P15
     const RIGHT_MOTOR_SPEED_PIN = AnalogPin.P14
@@ -13,7 +14,11 @@ namespace asbit {
     const RGB_GREEN_PIN = DigitalPin.P4
     const RGB_BLUE_PIN = DigitalPin.P3
 
-    // -------- MOTOR CONTROL --------
+    const IR_LEFT = AnalogPin.P0
+    const IR_MIDDLE = AnalogPin.P1
+    const IR_RIGHT = AnalogPin.P2
+
+    // -------- CAR CONTROL --------
     export enum MotorDir {
         //% block="forward"
         Forward,
@@ -46,7 +51,7 @@ namespace asbit {
     }
 
     /**
-     * Move the robot in a direction with the same speed.
+     * Move robot with a direction and speed (0-100).
      */
     //% blockId=asbit_move block="move %dir at speed %speed"
     //% speed.min=0 speed.max=100
@@ -80,15 +85,53 @@ namespace asbit {
     /**
      * Control each motor separately (-100 to 100).
      */
-    //% blockId=asbit_motor_control block="set left motor %leftSpeed \\% and right motor %rightSpeed \\%"
+    //% blockId=asbit_motor_control block="set left motor %leftSpeed \\% right motor %rightSpeed \\%"
     //% leftSpeed.min=-100 leftSpeed.max=100
     //% rightSpeed.min=-100 rightSpeed.max=100
-    //% group="Motor Control"
+    //% group="Car Control"
     export function motorControl(leftSpeed: number, rightSpeed: number): void {
         driveMotors(leftSpeed, rightSpeed)
     }
 
-    // -------- ULTRASONIC SENSOR --------
+    // -------- SENSORS --------
+    export enum IRSensor {
+        //% block="left"
+        Left,
+        //% block="middle"
+        Middle,
+        //% block="right"
+        Right
+    }
+
+    /**
+     * Read IR sensor value in analog (0-1023).
+     */
+    //% blockId=asbit_read_ir_analog block="read %sensor IR sensor (analog)"
+    //% group="Sensors"
+    export function readIRAnalog(sensor: IRSensor): number {
+        switch (sensor) {
+            case IRSensor.Left: return pins.analogReadPin(IR_LEFT)
+            case IRSensor.Middle: return pins.analogReadPin(IR_MIDDLE)
+            case IRSensor.Right: return pins.analogReadPin(IR_RIGHT)
+        }
+        return 0
+    }
+
+    /**
+     * Read IR sensor value in digital (0 or 1).
+     */
+    //% blockId=asbit_read_ir_digital block="read %sensor IR sensor (digital)"
+    //% group="Sensors"
+    export function readIRDigital(sensor: IRSensor): number {
+        switch (sensor) {
+            case IRSensor.Left: return pins.digitalReadPin(<DigitalPin><number>IR_LEFT)
+            case IRSensor.Middle: return pins.digitalReadPin(<DigitalPin><number>IR_MIDDLE)
+            case IRSensor.Right: return pins.digitalReadPin(<DigitalPin><number>IR_RIGHT)
+        }
+        return 0
+    }
+
+    // -------- ULTRASONIC --------
     /**
      * Get distance from ultrasonic sensor in cm.
      */
@@ -105,7 +148,7 @@ namespace asbit {
         return Math.idiv(d, 58)
     }
 
-    // -------- RGB CONTROL (Digital Only) --------
+    // -------- RGB --------
     export enum RGBColors {
         //% block="red"
         Red,
