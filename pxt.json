@@ -1,5 +1,5 @@
 {
-  "name": "ttthgfh",
+  "name": "asbit-robot",
   "version": "0.0.4",
   "description": "AS BIT robot extension with car control, sensors, RGB, NeoPixel, and Bluetooth.",
   "files": [
@@ -10,5 +10,18 @@
     "neopixel": "github:microsoft/pxt-neopixel"
   },
   "public": true,
-  "supportedTargets": ["microbit"]
+  "supportedTargets": ["microbit"],
+  "license": "MIT",
+  "repository": "github:hamdibillel-maker/AS-BIT",
+  "sim": {
+    "left": 140,
+    "top": 100,
+    "width": 184,
+    "height": 128
+  },
+  "blockly": {
+    "category": {
+      "colour": 90
+    }
+  }
 }
