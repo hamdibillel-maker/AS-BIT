@@ -1,0 +1,21 @@
+# Node dependencies
+node_modules/
+npm-debug.log
+
+# Build artifacts
+built/
+pxt_modules/
+pxtapp.json
+yotta_modules/
+yotta_targets/
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
