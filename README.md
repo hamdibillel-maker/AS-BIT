@@ -1,2 +1,6 @@
-# AS-BIT
-"description": "Extension for a smart micro:bit line follower robot with PID line tracking, Bluetooth remote control, NeoPixel RGB, buzzer, motors, and sensors. Designed by Hamdi Billel at Aissaoui School Robotics Centre."
+# LineFollower Robot Extension
+
+A custom MakeCode extension for the BBC micro:bit.  
+Includes PID line following, Bluetooth remote control, NeoPixel, buzzer, and motor functions.  
+
+**Designed by Hamdi Billel — Aissaoui School Robotics Centre**
