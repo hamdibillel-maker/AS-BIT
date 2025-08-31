@@ -1,12 +1,14 @@
 {
-  "name": "hi",
-  "version": "0.0.6",
-  "description": "AS BIT robot minimal extension: motor control block.",
-  "dependencies": {
-    "core": "*"
-  },
+  "name": "asbit",
+  "version": "0.0.1",
+  "description": "AS BIT robot extension with car control, sensors, RGB, and NeoPixel.",
   "files": [
-    "main.ts",
-    "test.ts"
-  ]
+    "main.ts"
+  ],
+  "dependencies": {
+    "core": "*",
+    "neopixel": "github:microsoft/pxt-neopixel"
+  },
+  "public": true,
+  "supportedTargets": ["microbit"]
 }
