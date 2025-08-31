@@ -233,6 +233,58 @@ namespace ASBIT {
         }
     }
 
+    /**
+     * Follows a black line until a black checkpoint is detected.
+     * The car uses the middle sensor to stay on the line and the
+     * side sensors to correct its path. It stops when all three sensors
+     * detect black, which is considered a checkpoint.
+     * @param speed The speed of the car, from 0 to 100.
+     */
+    //% block="follow line until black checkpoint at speed $speed"
+    //% speed.min=0 speed.max=100
+    //% subcategory="Car Control"
+    export function followLineUntilCheckpoint(speed: number): void {
+        while (true) {
+            const leftSensor = pins.digitalReadPin(IR_LEFT_PIN);
+            const middleSensor = pins.digitalReadPin(IR_MIDDLE_PIN);
+            const rightSensor = pins.digitalReadPin(IR_RIGHT_PIN);
+
+            // Create a single state variable from the sensor readings.
+            // E.g., `001` (binary) becomes `1` (decimal).
+            // A value of 1 for the IR sensor means black.
+            const sensorState = (leftSensor << 2) | (middleSensor << 1) | rightSensor;
+
+            // Check for the checkpoint first.
+            if (sensorState === 7) { // 111 in binary
+                moveCar(CarDirection.Stop, 0);
+                break;
+            }
+
+            // Use a switch statement for a cleaner and more robust logic.
+            switch (sensorState) {
+                case 2: // 010: Middle sensor on line. Go straight.
+                    setWheelsSpeed(WheelDirection.Forward, speed, WheelDirection.Forward, speed);
+                    break;
+                case 4: // 100: Left sensor on line. Turn right to get back on track.
+                    setWheelsSpeed(WheelDirection.Forward, speed, WheelDirection.Forward, 0);
+                    break;
+                case 1: // 001: Right sensor on line. Turn left to get back on track.
+                    setWheelsSpeed(WheelDirection.Forward, 0, WheelDirection.Forward, speed);
+                    break;
+                case 6: // 110: Left and middle on line. Drifting right, turn right.
+                    setWheelsSpeed(WheelDirection.Forward, speed * 0.5, WheelDirection.Forward, speed);
+                    break;
+                case 3: // 011: Middle and right on line. Drifting left, turn left.
+                    setWheelsSpeed(WheelDirection.Forward, speed, WheelDirection.Forward, speed * 0.5);
+                    break;
+                case 0: // 000: All sensors off line. Spin to find the line.
+                default:
+                    setWheelsSpeed(WheelDirection.Backward, speed, WheelDirection.Forward, speed);
+                    break;
+            }
+        }
+    }
+
     // --- Sensor Blocks ---
 
     /**
