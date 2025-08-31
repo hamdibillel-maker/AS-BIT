@@ -157,7 +157,7 @@ namespace ASBIT {
      * @param rightDir The direction for the right motor.
      * @param rightSpeed Speed for the right motor, from 0 to 100.
      */
-    //% block="set left wheel direction $leftDir speed $leftSpeed || and right wheel direction $rightDir speed $rightSpeed"
+    //% block="set left wheel $leftDir speed $leftSpeed right wheel $rightDir speed $rightSpeed"
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
     //% subcategory="Car Control"
