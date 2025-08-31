@@ -1,7 +1,7 @@
 //% color=#FF6600 icon="\uf1b9" block="AS BIT"
 namespace asbit {
 
-    // --- Pins ---
+    // ---------------- PINS ----------------
     const LEFT_MOTOR_SPEED_PIN = AnalogPin.P16
     const LEFT_MOTOR_DIR_PIN = DigitalPin.P15
     const RIGHT_MOTOR_SPEED_PIN = AnalogPin.P14
@@ -22,8 +22,39 @@ namespace asbit {
     const NEOPIXEL_LEN = 7
     let strip: neopixel.Strip = null
 
-    // ---------------- CAR CONTROL ----------------
+    // ---------------- MOTOR ----------------
     export enum MotorDir {
+        //% block="forward"
+        Forward,
+        //% block="backward"
+        Backward
+    }
+
+    /**
+     * Tall block: control both motors speed & direction
+     */
+    //% blockId=asbit_motor_control_full block="left motor %leftDir at %leftSpeed \\% right motor %rightDir at %rightSpeed \\%"
+    //% leftSpeed.min=0 leftSpeed.max=100
+    //% rightSpeed.min=0 rightSpeed.max=100
+    //% group="Car Control"
+    export function motorControlFull(
+        leftDir: MotorDir, leftSpeed: number,
+        rightDir: MotorDir, rightSpeed: number
+    ): void {
+        let l = leftDir == MotorDir.Backward ? -leftSpeed : leftSpeed
+        let r = rightDir == MotorDir.Backward ? -rightSpeed : rightSpeed
+
+        const leftPinDir = l >= 0 ? 1 : 0
+        const rightPinDir = r >= 0 ? 1 : 0
+
+        pins.digitalWritePin(LEFT_MOTOR_DIR_PIN, leftPinDir)
+        pins.digitalWritePin(RIGHT_MOTOR_DIR_PIN, rightPinDir)
+        pins.analogWritePin(LEFT_MOTOR_SPEED_PIN, Math.map(Math.abs(l), 0, 100, 0, 1023))
+        pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, Math.map(Math.abs(r), 0, 100, 0, 1023))
+    }
+
+    // ---------------- CAR CONTROL ----------------
+    export enum MotorMove {
         //% block="forward"
         Forward,
         //% block="backward"
@@ -40,52 +71,30 @@ namespace asbit {
         Stop
     }
 
-    function driveMotors(leftSpeed: number, rightSpeed: number) {
-        const leftDir = leftSpeed >= 0 ? 1 : 0
-        const rightDir = rightSpeed >= 0 ? 1 : 0
-        const scaledLeft = Math.map(Math.abs(leftSpeed), 0, 100, 0, 1023)
-        const scaledRight = Math.map(Math.abs(rightSpeed), 0, 100, 0, 1023)
-
-        pins.digitalWritePin(LEFT_MOTOR_DIR_PIN, leftDir)
-        pins.digitalWritePin(RIGHT_MOTOR_DIR_PIN, rightDir)
-        pins.analogWritePin(LEFT_MOTOR_SPEED_PIN, scaledLeft)
-        pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, scaledRight)
-    }
-
     /**
      * Move robot in a direction at given percentage speed.
      */
     //% blockId=asbit_move block="move %dir at %speed \\%"
     //% speed.min=0 speed.max=100
     //% group="Car Control"
-    export function move(dir: MotorDir, speed: number): void {
+    export function move(dir: MotorMove, speed: number): void {
         let left = 0
         let right = 0
         let displayText = ""
         switch(dir){
-            case MotorDir.Forward: left=speed; right=speed; displayText="F"; break
-            case MotorDir.Backward: left=-speed; right=-speed; displayText="B"; break
-            case MotorDir.Left: left=0; right=speed; displayText="L"; break
-            case MotorDir.Right: left=speed; right=0; displayText="R"; break
-            case MotorDir.SpinLeft: left=-speed; right=speed; displayText="SL"; break
-            case MotorDir.SpinRight: left=speed; right=-speed; displayText="SR"; break
-            case MotorDir.Stop: left=0; right=0; displayText="S"; break
+            case MotorMove.Forward: left=speed; right=speed; displayText="F"; break
+            case MotorMove.Backward: left=-speed; right=-speed; displayText="B"; break
+            case MotorMove.Left: left=0; right=speed; displayText="L"; break
+            case MotorMove.Right: left=speed; right=0; displayText="R"; break
+            case MotorMove.SpinLeft: left=-speed; right=speed; displayText="SL"; break
+            case MotorMove.SpinRight: left=speed; right=-speed; displayText="SR"; break
+            case MotorMove.Stop: left=0; right=0; displayText="S"; break
         }
-        driveMotors(left,right)
+        pins.digitalWritePin(LEFT_MOTOR_DIR_PIN, left>=0?1:0)
+        pins.digitalWritePin(RIGHT_MOTOR_DIR_PIN, right>=0?1:0)
+        pins.analogWritePin(LEFT_MOTOR_SPEED_PIN, Math.map(Math.abs(left),0,100,0,1023))
+        pins.analogWritePin(RIGHT_MOTOR_SPEED_PIN, Math.map(Math.abs(right),0,100,0,1023))
         basic.showString(displayText)
-    }
-
-    /**
-     * Control left/right motor separately (0-100%) with direction.
-     */
-    //% blockId=asbit_motor_control block="left motor %leftDir at %leftSpeed \\% right motor %rightDir at %rightSpeed \\%"
-    //% leftSpeed.min=0 leftSpeed.max=100
-    //% rightSpeed.min=0 rightSpeed.max=100
-    //% group="Car Control"
-    export function motorControl(leftDir: MotorDir, leftSpeed:number, rightDir: MotorDir, rightSpeed:number){
-        let l = leftDir==MotorDir.Backward ? -leftSpeed : leftSpeed
-        let r = rightDir==MotorDir.Backward ? -rightSpeed : rightSpeed
-        driveMotors(l,r)
     }
 
     // ---------------- IR SENSORS ----------------
@@ -98,9 +107,6 @@ namespace asbit {
         Right
     }
 
-    /**
-     * Read IR analog (0-1023)
-     */
     //% blockId=asbit_read_ir_analog block="read %sensor IR analog"
     //% group="Sensors"
     export function readIRAnalog(sensor:IRSensor):number{
@@ -112,9 +118,6 @@ namespace asbit {
         return 0
     }
 
-    /**
-     * Read IR digital (0 or 1)
-     */
     //% blockId=asbit_read_ir_digital block="read %sensor IR digital"
     //% group="Sensors"
     export function readIRDigital(sensor:IRSensor):number{
@@ -127,9 +130,6 @@ namespace asbit {
     }
 
     // ---------------- ULTRASONIC ----------------
-    /**
-     * Ultrasonic distance (cm)
-     */
     //% blockId=asbit_ultrasonic block="ultrasonic distance (cm)"
     //% group="Sensors"
     export function ultrasonic():number{
@@ -215,19 +215,14 @@ namespace asbit {
         Scan
     }
 
-    /**
-     * Initialize NeoPixel strip
-     */
     //% blockId=asbit_neopixel_init block="initialize NeoPixel"
     //% group="NeoPixel"
     export function initNeoPixel():void{
-        strip = neopixel.create(NEOPIXEL_PIN, NEOPIXEL_LEN, NeoPixelMode.RGB)
-        strip.show()
+        if (!strip) {
+            strip = neopixel.create(NEOPIXEL_PIN, NEOPIXEL_LEN, NeoPixelMode.RGB)
+        }
     }
 
-    /**
-     * Set NeoPixel LED by index
-     */
     //% blockId=asbit_neopixel_set_single block="set NeoPixel LED %index color to %color"
     //% index.min=0 index.max=6
     //% group="NeoPixel"
@@ -246,9 +241,6 @@ namespace asbit {
         strip.show()
     }
 
-    /**
-     * Set all NeoPixels to one color
-     */
     //% blockId=asbit_neopixel_set_all block="set all NeoPixels to %color"
     //% group="NeoPixel"
     export function setNeoPixelAll(color:NeoPixelColor){
@@ -265,9 +257,6 @@ namespace asbit {
         }
     }
 
-    /**
-     * NeoPixel animations
-     */
     //% blockId=asbit_neopixel_animation block="NeoPixel animation %mode"
     //% group="NeoPixel"
     export function neoPixelAnimation(mode:NeoPixelMode){
@@ -295,26 +284,4 @@ namespace asbit {
                 }
                 break
             case NeoPixelMode.ColorWipe:
-                for(let i=0;i<strip.length();i++){
-                    strip.setPixelColor(i, neopixel.colors(NeoPixelColors.Red))
-                    strip.show()
-                    basic.pause(100)
-                }
-                break
-            case NeoPixelMode.Scan:
-                for(let i=0;i<strip.length();i++){
-                    strip.clear()
-                    strip.setPixelColor(i, neopixel.colors(NeoPixelColors.Green))
-                    strip.show()
-                    basic.pause(100)
-                }
-                for(let i=strip.length()-1;i>=0;i--){
-                    strip.clear()
-                    strip.setPixelColor(i, neopixel.colors(NeoPixelColors.Green))
-                    strip.show()
-                    basic.pause(100)
-                }
-                break
-        }
-    }
-}
+                for(let i=0;i<strip
