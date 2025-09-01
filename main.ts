@@ -77,6 +77,7 @@ namespace asbit {
     //% speed.defl=80
     //% direction.defl=CarDirection.Forward
     //% weight=90
+    //% subcategory="Car Control"
     export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
 
@@ -135,13 +136,14 @@ namespace asbit {
      * Left = spin left (left back, right forward)
      * Right = spin right (left forward, right back)
      */
-    //% block="Move %direction: left speed %leftSpeed right speed %rightSpeed"
+    //% block="Move %direction left speed %leftSpeed right speed %rightSpeed"
     //% direction.defl=CarDirection.Forward
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
     //% leftSpeed.defl=80 rightSpeed.defl=80
     //% inlineInputMode=inline
     //% weight=89
+    //% subcategory="Car Control"
     export function moveWithSpeeds(
         direction: CarDirection,
         leftSpeed: number,
@@ -190,6 +192,7 @@ namespace asbit {
      */
     //% block="Ultrasonic distance (cm)"
     //% weight=80
+    //% subcategory="Sensors"
     export function ultra(): number {
         pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
         pins.analogWritePin(ULTRASONIC_TRIG, 0);
@@ -208,6 +211,7 @@ namespace asbit {
      */
     //% block="Read %sensor IR sensor as %mode"
     //% weight=79
+    //% subcategory="Sensors"
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
         const pin = 
             sensor === IRSensor.Left ? IR_LEFT :
@@ -228,6 +232,7 @@ namespace asbit {
     //% brightness.min=0 brightness.max=100
     //% brightness.defl=100
     //% weight=71
+    //% subcategory="RGB Control"
     export function setRGBBrightness(brightness: number): void {
         rgbBrightness = Math.max(0, Math.min(100, brightness)); // clamp 0-100
     }
@@ -237,6 +242,7 @@ namespace asbit {
      */
     //% block="Set RGB to %color"
     //% weight=70
+    //% subcategory="RGB Control"
     export function setRGB(color: Color): void {
         const level = Math.map(rgbBrightness, 0, 100, 0, 1023);
 
