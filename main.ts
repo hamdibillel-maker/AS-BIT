@@ -1,23 +1,40 @@
 /**
- * AS BIT Robot Extension
- * Simplified, clean, and block-friendly.
+ * AS BIT Robot
+ * Final version: two RGB blocks, safe pin control, correct color logic.
  */
-//% color=#2E8B57 icon="\uf1b9" block="AS BIT Robot"
+//% color=#8E44AD icon="\uf1b9" block="AS BIT"
 namespace asbit {
     // === Motor Pins ===
-    const LEFT_MOTOR_FORWARD = DigitalPin.P13;
-    const LEFT_MOTOR_BACKWARD = DigitalPin.P14;
-    const RIGHT_MOTOR_FORWARD = DigitalPin.P15;
-    const RIGHT_MOTOR_BACKWARD = DigitalPin.P16;
+    const LEFT_MOTOR_FORWARD = DigitalPin.P15;
+    const LEFT_MOTOR_BACKWARD = DigitalPin.P16;
+    const RIGHT_MOTOR_FORWARD = DigitalPin.P13;
+    const RIGHT_MOTOR_BACKWARD = DigitalPin.P14;
 
     // === Sensor Pins ===
-    const LINE_SENSOR_LEFT = AnalogPin.P1;
-    const LINE_SENSOR_RIGHT = AnalogPin.P2;
-    const ULTRASONIC_TRIGGER = DigitalPin.P12;
-    const ULTRASONIC_ECHO = DigitalPin.P11;
+    const IR_LEFT = DigitalPin.P0;
+    const IR_MIDDLE = DigitalPin.P1;
+    const IR_RIGHT = DigitalPin.P2;
 
-    // === RGB Pin ===
-    const RGB_PIN = DigitalPin.P8;
+    const ULTRASONIC_TRIG = DigitalPin.P8;
+    const ULTRASONIC_ECHO = DigitalPin.P12;
+
+    // === Buzzer & RGB Pins (P3=Blue, P4=Green, P5=Red) ===
+    const BUZZER_PIN = DigitalPin.P9;
+    const RGB_RED = DigitalPin.P5;
+    const RGB_GREEN = DigitalPin.P4;
+    const RGB_BLUE = DigitalPin.P3;
+
+    // === Internal: brightness control ===
+    let rgbBrightness = 100; // Default brightness
+
+    // === Auto-setup: Sound → PIN9, RGB off by default ===
+    control.onEvent(1, 1, () => {
+        pins.setAudioPin(BUZZER_PIN);
+        // Turn off all RGB pins at start
+        pins.analogWritePin(RGB_RED, 0);
+        pins.analogWritePin(RGB_GREEN, 0);
+        pins.analogWritePin(RGB_BLUE, 0);
+    });
 
     // === Enums ===
     export enum CarDirection {
@@ -29,9 +46,15 @@ namespace asbit {
         SpinRight
     }
 
-    export enum LineSensor {
+    export enum IRSensor {
         Left,
+        Middle,
         Right
+    }
+
+    export enum ReadMode {
+        Analog,
+        Digital
     }
 
     export enum Color {
@@ -45,175 +68,223 @@ namespace asbit {
         Off
     }
 
-    // === Motor Control ===
+    // === Block 1: Simple Move (with SpinLeft/SpinRight) ===
     /**
-     * Move robot in direction at speed
-     * @param direction Direction to move
-     * @param speed Speed 0-100
+     * Move in direction at speed 0-100
      */
     //% block="Car move %direction at speed %speed"
     //% speed.min=0 speed.max=100
     //% speed.defl=80
+    //% direction.defl=CarDirection.Forward
     //% weight=90
     export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
 
         switch (direction) {
             case CarDirection.Forward:
-                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 1);
-                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 0);
-                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 1);
-                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
 
             case CarDirection.Backward:
-                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 0);
-                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 1);
-                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 0);
-                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 1);
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, pwm);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, pwm);
                 break;
 
             case CarDirection.Left:
-                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 0);
-                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 1);
-                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 1);
-                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 0);
+                // Pivot left: only right wheel moves
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
 
             case CarDirection.Right:
-                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 1);
-                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 0);
-                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 0);
-                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 1);
+                // Pivot right: only left wheel moves
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
 
             case CarDirection.SpinLeft:
-                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 0);
-                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 1);
-                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 1);
-                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 0);
+                // Spin in place left
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, pwm);
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
 
             case CarDirection.SpinRight:
-                pins.digitalWritePin(LEFT_MOTOR_FORWARD, 1);
-                pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 0);
-                pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 0);
-                pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 1);
-                break;
-
-            default:
-                car_stop();
+                // Spin in place right
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, pwm);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
                 break;
         }
     }
 
+    // === Block 2: Advanced Move (spin turns for Left/Right) ===
     /**
-     * Stop the robot
+     * Move in direction with custom left and right speeds (0-100)
+     * Left = spin left (left back, right forward)
+     * Right = spin right (left forward, right back)
      */
-    //% block="Car stop"
+    //% block="Move %direction: left speed %leftSpeed right speed %rightSpeed"
+    //% direction.defl=CarDirection.Forward
+    //% leftSpeed.min=0 leftSpeed.max=100
+    //% rightSpeed.min=0 rightSpeed.max=100
+    //% leftSpeed.defl=80 rightSpeed.defl=80
+    //% inlineInputMode=inline
     //% weight=89
-    export function car_stop(): void {
-        pins.digitalWritePin(LEFT_MOTOR_FORWARD, 0);
-        pins.digitalWritePin(LEFT_MOTOR_BACKWARD, 0);
-        pins.digitalWritePin(RIGHT_MOTOR_FORWARD, 0);
-        pins.digitalWritePin(RIGHT_MOTOR_BACKWARD, 0);
+    export function moveWithSpeeds(
+        direction: CarDirection,
+        leftSpeed: number,
+        rightSpeed: number
+    ): void {
+        const leftPwm = Math.map(leftSpeed, 0, 100, 0, 1023);
+        const rightPwm = Math.map(rightSpeed, 0, 100, 0, 1023);
+
+        switch (direction) {
+            case CarDirection.Forward:
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, leftPwm);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, rightPwm);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
+                break;
+
+            case CarDirection.Backward:
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, leftPwm);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, rightPwm);
+                break;
+
+            case CarDirection.Left:
+                // Spin left: left backward, right forward
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, leftPwm);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, rightPwm);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
+                break;
+
+            case CarDirection.Right:
+                // Spin right: left forward, right backward
+                pins.analogWritePin(LEFT_MOTOR_FORWARD, leftPwm);
+                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
+                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, rightPwm);
+                break;
+        }
     }
 
-    // === Sensor Reading (Analog & Digital) ===
-    /**
-     * Read line sensor analog value
-     * @param sensor Left or Right
-     */
-    //% block="Read %sensor line sensor (analog)"
-    //% weight=85
-    export function readLineAnalog(sensor: LineSensor): number {
-        const pin = sensor === LineSensor.Left ? LINE_SENSOR_LEFT : LINE_SENSOR_RIGHT;
-        return pins.analogReadPin(pin);
-    }
+    // === Sensors Blocks ===
 
     /**
-     * Read line sensor as digital (black/white)
-     * @param sensor Left or Right
-     * @param threshold Threshold value 0-1023, eg: 500
-     */
-    //% block="Is %sensor line detected? (threshold %threshold)"
-    //% threshold.min=0 threshold.max=1023
-    //% threshold.defl=500
-    //% weight=84
-    export function isLineDetected(sensor: LineSensor, threshold: number = 500): boolean {
-        return readLineAnalog(sensor) > threshold;
-    }
-
-    // === Ultrasonic Sensor ===
-    /**
-     * Get distance from ultrasonic sensor (cm)
+     * Get ultrasonic distance in cm
      */
     //% block="Ultrasonic distance (cm)"
     //% weight=80
     export function ultra(): number {
-        pins.setPull(ULTRASONIC_TRIGGER, PinPullMode.PullNone);
-        pins.digitalWritePin(ULTRASONIC_TRIGGER, 0);
+        pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
+        pins.analogWritePin(ULTRASONIC_TRIG, 0);
         control.waitMicros(2);
-        pins.digitalWritePin(ULTRASONIC_TRIGGER, 1);
+        pins.analogWritePin(ULTRASONIC_TRIG, 1023);
         control.waitMicros(10);
-        pins.digitalWritePin(ULTRASONIC_TRIGGER, 0);
+        pins.analogWritePin(ULTRASONIC_TRIG, 0);
 
         const d = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
-        return Math.round(d / 58);
-    }
-
-    // === RGB LED (NeoPixel) - Only Predefined Colors ===
-    let strip: neopixel.Strip = null;
-    function getStrip(): neopixel.Strip {
-        if (!strip) {
-            strip = neopixel.create(RGB_PIN, 1, NeoPixelMode.RGB);
-        }
-        return strip;
+        const cm = Math.round(d / 58);
+        return cm > 0 ? cm : 0;
     }
 
     /**
-     * Set RGB to predefined color
-     * @param color Choose a color
+     * Read IR sensor as analog or digital
+     */
+    //% block="Read %sensor IR sensor as %mode"
+    //% weight=79
+    export function readIR(sensor: IRSensor, mode: ReadMode): number {
+        const pin = 
+            sensor === IRSensor.Left ? IR_LEFT :
+            sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
+
+        return mode === ReadMode.Analog
+            ? pins.analogReadPin(pin)
+            : pins.digitalReadPin(pin);
+    }
+
+    // === RGB Control (Two Blocks) ===
+
+    /**
+     * Set RGB brightness (0-100)
+     * Default is 100, so RGB works without this block
+     */
+    //% block="Set RGB brightness %brightness"
+    //% brightness.min=0 brightness.max=100
+    //% brightness.defl=100
+    //% weight=71
+    export function setRGBBrightness(brightness: number): void {
+        rgbBrightness = Math.max(0, Math.min(100, brightness)); // clamp 0-100
+    }
+
+    /**
+     * Set RGB color (uses current brightness)
      */
     //% block="Set RGB to %color"
-    //% weight=75
+    //% weight=70
     export function setRGB(color: Color): void {
-        const c = colorToRGB(color);
-        const s = getStrip();
-        s.setPixelColor(0, c);
-        s.show();
-    }
+        const level = Math.map(rgbBrightness, 0, 100, 0, 1023);
 
-    function colorToRGB(color: Color): number {
+        // Always turn all off first
+        pins.analogWritePin(RGB_RED, 0);
+        pins.analogWritePin(RGB_GREEN, 0);
+        pins.analogWritePin(RGB_BLUE, 0);
+
         switch (color) {
-            case Color.Red: return neopixel.colors(NeoPixelColors.Red);
-            case Color.Green: return neopixel.colors(NeoPixelColors.Green);
-            case Color.Blue: return neopixel.colors(NeoPixelColors.Blue);
-            case Color.Yellow: return neopixel.colors(NeoPixelColors.Yellow);
-            case Color.Purple: return neopixel.colors(NeoPixelColors.Purple);
-            case Color.Cyan: return neopixel.colors(NeoPixelColors.Indigo);
-            case Color.White: return neopixel.colors(NeoPixelColors.White);
-            default: return neopixel.colors(NeoPixelColors.Black);
+            case Color.Red:
+                pins.analogWritePin(RGB_RED, level);
+                pins.analogWritePin(RGB_GREEN, 0);
+                pins.analogWritePin(RGB_BLUE, 0);
+                break;
+            case Color.Green:
+                pins.analogWritePin(RGB_RED, 0);
+                pins.analogWritePin(RGB_GREEN, level);
+                pins.analogWritePin(RGB_BLUE, 0);
+                break;
+            case Color.Blue:
+                pins.analogWritePin(RGB_RED, 0);
+                pins.analogWritePin(RGB_GREEN, 0);
+                pins.analogWritePin(RGB_BLUE, level);
+                break;
+            case Color.Yellow:
+                pins.analogWritePin(RGB_RED, level);
+                pins.analogWritePin(RGB_GREEN, level);
+                pins.analogWritePin(RGB_BLUE, 0);
+                break;
+            case Color.Purple:
+                pins.analogWritePin(RGB_RED, level);
+                pins.analogWritePin(RGB_GREEN, 0);
+                pins.analogWritePin(RGB_BLUE, level);
+                break;
+            case Color.Cyan:
+                pins.analogWritePin(RGB_RED, 0);
+                pins.analogWritePin(RGB_GREEN, level);
+                pins.analogWritePin(RGB_BLUE, level);
+                break;
+            case Color.White:
+                pins.analogWritePin(RGB_RED, level);
+                pins.analogWritePin(RGB_GREEN, level);
+                pins.analogWritePin(RGB_BLUE, level);
+                break;
+            case Color.Off:
+            default:
+                // All already off
+                break;
         }
-    }
-
-    // === Bluetooth Serial ===
-    /**
-     * Send message over Bluetooth
-     * @param msg Message to send
-     */
-    //% block="Send Bluetooth: %msg"
-    //% weight=60
-    export function sendBluetooth(msg: string): void {
-        serial.writeLine(msg);
-    }
-
-    /**
-     * Run code when Bluetooth data is received
-     */
-    //% block="On Bluetooth received"
-    //% weight=59
-    export function onBluetoothReceived(handler: () => void) {
-        serial.onDataReceived(serial.delimiters(Delimiters.NewLine), handler);
     }
 }
