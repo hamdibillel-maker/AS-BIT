@@ -67,6 +67,25 @@ namespace asbit {
         White,
         Off
     }
+    
+    // --- Helper function to stop the car ---
+    function stopCar(): void {
+        pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
+        pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+        pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
+        pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
+    }
+
+    // === New Block: Stop ===
+    /**
+     * Stops the car's motors.
+     */
+    //% block="Car stop"
+    //% weight=95
+    //% subcategory="Car Control"
+    export function car_stop(): void {
+        stopCar();
+    }
 
     // === Block 1: Simple Move (with SpinLeft/SpinRight) ===
     /**
@@ -130,6 +149,24 @@ namespace asbit {
         }
     }
 
+    // === New Block: Simple Move with Time ===
+    /**
+     * Move in direction at speed for a duration in milliseconds.
+     */
+    //% block="Car move %direction at speed %speed for %time ms"
+    //% speed.min=0 speed.max=100
+    //% speed.defl=80
+    //% direction.defl=CarDirection.Forward
+    //% time.defl=1000
+    //% weight=88
+    //% subcategory="Car Control"
+    export function car_run_for_time(direction: CarDirection, speed: number, time: number): void {
+        car_run(direction, speed);
+        basic.pause(time);
+        stopCar();
+    }
+
+
     // === Block 2: Advanced Move (spin turns for Left/Right) ===
     /**
      * Move in direction with custom left and right speeds (0-100)
@@ -184,6 +221,30 @@ namespace asbit {
                 break;
         }
     }
+
+    // === New Block: Advanced Move with Time ===
+    /**
+     * Move with custom speeds for a duration in milliseconds.
+     */
+    //% block="Move %direction left speed %leftSpeed right speed %rightSpeed for %time ms"
+    //% direction.defl=CarDirection.Forward
+    //% leftSpeed.min=0 leftSpeed.max=100
+    //% rightSpeed.min=0 rightSpeed.max=100
+    //% leftSpeed.defl=80 rightSpeed.defl=80
+    //% time.defl=1000
+    //% weight=87
+    //% subcategory="Car Control"
+    export function moveWithSpeeds_for_time(
+        direction: CarDirection,
+        leftSpeed: number,
+        rightSpeed: number,
+        time: number
+    ): void {
+        moveWithSpeeds(direction, leftSpeed, rightSpeed);
+        basic.pause(time);
+        stopCar();
+    }
+
 
     // === Sensors Blocks ===
 
