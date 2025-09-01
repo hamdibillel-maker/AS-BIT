@@ -1,45 +1,49 @@
-// This is a test program to demonstrate the functionality of the
-// "AS BIT" extension blocks.
+// This file is used to test the functions in the AS BIT extension.
+// It is recommended to use the serial console for detailed output.
 
-// Import the ASBIT extension functions.
-// This is automatically done in MakeCode once the extension is added.
+// === Test Sequence ===
+// The test program will show an icon, then pause to give you time
+// to place the robot in position for the next test.
 
-// We will test the car control, RGB LED, and ultrasonic sensor blocks.
-basic.forever(function () {
-    // Test the car control blocks.
-    // Move the car forward at a medium speed (50%).
-    ASBIT.moveCar(ASBIT.CarDirection.Forward, 50);
-    basic.pause(2000); // Wait for 2 seconds.
+basic.showString("Test Start");
 
-    // Stop the car.
-    ASBIT.moveCar(ASBIT.CarDirection.Stop, 0);
-    basic.pause(500); // Wait for half a second.
+// === Test 1: Car Movement ===
+// The robot will move forward, backward, left, and right.
+basic.showLeds(`
+    . . # . .
+    . # . # .
+    # # # # #
+    . # . # .
+    . . # . .
+`);
+basic.pause(1000);
+asbit.car_run(asbit.CarDirection.Forward, 50);
+basic.pause(1000);
+asbit.car_stop();
+basic.pause(500);
 
-    // Test the RGB LED block.
-    // Set the digital RGB LED to a unique color, for example, Magenta.
-    ASBIT.setDigitalRGB(ASBIT.RGBColors.Magenta);
-    basic.pause(1000); // Wait for 1 second.
+asbit.car_run(asbit.CarDirection.Backward, 50);
+basic.pause(1000);
+asbit.car_stop();
+basic.pause(500);
 
-    // Set the LED to another color.
-    ASBIT.setDigitalRGB(ASBIT.RGBColors.Cyan);
-    basic.pause(1000); // Wait for 1 second.
-    
-    // Turn the RGB LED off.
-    ASBIT.setDigitalRGB(ASBIT.RGBColors.Off);
-    basic.pause(500); // Wait for half a second.
+asbit.car_run(asbit.CarDirection.SpinLeft, 50);
+basic.pause(1000);
+asbit.car_stop();
+basic.pause(500);
 
-    // Test the ultrasonic sensor block.
-    // Get the distance in centimeters and display it on the Micro:bit's LED matrix.
-    const distance = ASBIT.ultrasonicDistance();
-    basic.showNumber(distance);
-    basic.pause(1000); // Wait for a second.
+asbit.car_run(asbit.CarDirection.SpinRight, 50);
+basic.pause(1000);
+asbit.car_stop();
+basic.pause(500);
 
-    // Test the line follower block.
-    // The car will follow a black line and stop when all three sensors
-    // detect a black surface, indicating a checkpoint.
-    basic.showString("Line Following...");
-    ASBIT.followLineUntilCheckpoint(30);
-    basic.showString("Checkpoint!");
-    
-    basic.pause(2000); // Wait for 2 seconds before repeating the loop.
-})
+// === Test 2: Ultrasonic Sensor and Obstacle Avoidance ===
+// The robot will move forward, and if it detects an obstacle, it will stop and show a sad face.
+// You will need to manually move an object in front of the ultrasonic sensor to test this.
+basic.showString("Test Ultra");
+basic.showIcon(IconNames.Happy);
+asbit.avoidObstacles(50, 20); // Avoid obstacles closer than 20cm
+
+// This part of the code will not be reached as the loop in avoidObstacles is infinite.
+// For a complete test sequence, you would need to stop this loop, for example, using a radio signal or button press.
+// This is an example of a simple test.
