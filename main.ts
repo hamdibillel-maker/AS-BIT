@@ -2,7 +2,7 @@
  * AS BIT Robot
  * Final version: two RGB blocks, safe pin control, correct color logic.
  */
-//% color=#8E44AD icon="\uf1b9" block="AS BIT"
+//% color=#696969 icon="\uf1b9" block="AS BIT"
 namespace asbit {
     // === Motor Pins ===
     const LEFT_MOTOR_FORWARD = DigitalPin.P15;
@@ -89,6 +89,13 @@ namespace asbit {
         Black,
         //% block="white"
         White
+    }
+
+    export enum Comparison {
+        //% block="less than"
+        LessThan,
+        //% block="greater than"
+        EqualTo
     }
 
     // --- Helper function to stop the car ---
@@ -325,6 +332,33 @@ namespace asbit {
         lineFollowTurnSpeed = turnSpeed;
     }
 
+    /**
+     * Turn until a line is detected by the middle IR sensor.
+     * Useful for re-acquiring the line after losing it.
+     */
+    //% block="Turn %direction until line detected at speed %speed"
+    //% direction.defl=CarDirection.SpinLeft
+    //% speed.min=0 speed.max=100
+    //% speed.defl=50
+    //% weight=83
+    export function turnUntilLine(direction: CarDirection, speed: number): void {
+        if (direction === CarDirection.SpinLeft || direction === CarDirection.SpinRight) {
+            while (true) {
+                const middleOnLine = pins.analogReadPin(IR_MIDDLE_ANALOG) > whiteMid;
+                
+                // If the middle sensor detects the line, stop and break
+                if (middleOnLine) {
+                    car_stop();
+                    break;
+                }
+                
+                // Otherwise, continue spinning
+                car_run(direction, speed);
+                basic.pause(10);
+            }
+        }
+    }
+
     // === New Block: Line Follow until Checkpoints ===
     /**
      * Follow a line until a specified number of checkpoints are detected.
@@ -415,12 +449,51 @@ namespace asbit {
         return cm > 0 ? cm : 0;
     }
 
+    // === New Block: Wait Until Ultrasonic Distance ===
+    /**
+     * Wait until the ultrasonic sensor reads a distance that meets a condition.
+     */
+    //% block="wait until ultrasonic distance is %comparison %value cm"
+    //% value.min=0
+    //% value.defl=10
+    //% comparison.defl=Comparison.LessThan
+    //% weight=79
+    //% inlineInputMode=inline
+    export function waitUntilDistance(comparison: Comparison, value: number): void {
+        while (true) {
+            const distance = ultra();
+            let conditionMet = false;
+            switch (comparison) {
+                case Comparison.LessThan:
+                    if (distance < value) {
+                        conditionMet = true;
+                    }
+                    break;
+                case Comparison.GreaterThan:
+                    if (distance > value) {
+                        conditionMet = true;
+                    }
+                    break;
+                case Comparison.EqualTo:
+                    // Using a small range to account for sensor noise
+                    if (Math.abs(distance - value) <= 1) {
+                        conditionMet = true;
+                    }
+                    break;
+            }
+            if (conditionMet) {
+                break;
+            }
+            basic.pause(50);
+        }
+    }
+
     // === Read IR Block ===
     /**
      * Read IR sensor as analog or digital
      */
     //% block="Read %sensor IR sensor as %mode"
-    //% weight=79
+    //% weight=78
     //% inlineInputMode=inline
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
         const pin =
@@ -515,6 +588,29 @@ namespace asbit {
     }
 
     /**
+     * Automatically calibrate IR sensors for white and black.
+     * Place the robot over a white surface first, then over the black line.
+     */
+    //% block="auto-calibrate IR sensors"
+    //% subcategory="Advanced Line Following"
+    //% weight=80
+    export function autoCalibrate(): void {
+        // Calibrate White
+        basic.pause(2000); // Give user time to place on white surface
+        whiteLeft = pins.analogReadPin(IR_LEFT_ANALOG);
+        whiteMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
+        whiteRight = pins.analogReadPin(IR_RIGHT_ANALOG);
+
+        // Calibrate Black
+        basic.pause(2000); // Give user time to place on black surface
+        blackLeft = pins.analogReadPin(IR_LEFT_ANALOG);
+        blackMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
+        blackRight = pins.analogReadPin(IR_RIGHT_ANALOG);
+        
+        basic.pause(1000);
+    }
+
+    /**
      * Set PID constants
      */
     //% block="set PID values Kp %p Ki %i Kd %d"
@@ -597,5 +693,61 @@ namespace asbit {
             basic.pause(10);
         }
         stopCar();
+    }
+
+    // === Block Category Headers ===
+    //% block="---" blockHidden=true
+    //% block="Activities or Games"
+    //% blockHidden=true
+    export function ActivitiesHeader(): void { }
+
+    /**
+     * The robot will follow a user at a specified distance.
+     */
+    //% block="Track user at %speed speed to a distance of %distance cm"
+    //% speed.min=0 speed.max=100
+    //% speed.defl=50
+    //% distance.min=5 distance.defl=20
+    //% subcategory="Activities or Games"
+    //% inlineInputMode=inline
+    export function trackUser(speed: number, distance: number): void {
+        while (true) {
+            const currentDistance = ultra();
+            const difference = currentDistance - distance;
+            const tolerance = 2; // Tolerance in cm
+
+            if (difference > tolerance) {
+                car_run(CarDirection.Forward, speed);
+            } else if (difference < -tolerance) {
+                car_run(CarDirection.Backward, speed);
+            } else {
+                car_stop();
+            }
+            basic.pause(50);
+        }
+    }
+
+    /**
+     * The robot will run, and if it finds an obstacle, it will spin and keep going.
+     */
+    //% block="Avoid obstacles at %speed speed less than %distance cm"
+    //% speed.min=0 speed.max=100
+    //% speed.defl=50
+    //% distance.min=5 distance.defl=20
+    //% subcategory="Activities or Games"
+    //% inlineInputMode=inline
+    export function avoidObstacles(speed: number, distance: number): void {
+        while (true) {
+            const currentDistance = ultra();
+            if (currentDistance < distance && currentDistance > 0) {
+                car_stop();
+                basic.pause(100);
+                car_run(CarDirection.SpinLeft, speed);
+                basic.pause(Math.randomRange(500, 1500));
+            } else {
+                car_run(CarDirection.Forward, speed);
+            }
+            basic.pause(50);
+        }
     }
 }
