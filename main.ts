@@ -2,7 +2,7 @@
  * AS BIT Robot
  * Final version: two RGB blocks, safe pin control, correct color logic.
  */
-//% color=#696969 icon="\uf1b9" block="AS BIT"
+//% color=#7B68EE icon="\uf1b9" block="AS BIT"
 namespace asbit {
     // === Motor Pins ===
     const LEFT_MOTOR_FORWARD = DigitalPin.P15;
@@ -140,6 +140,7 @@ namespace asbit {
     //% block="---" blockHidden=true
     //% block="Car Control"
     //% blockHidden=true
+    //% block.color=#FF4500
     export function CarControlHeader(): void { }
 
     // === Block 1: Simple Move (with SpinLeft/SpinRight) ===
@@ -152,6 +153,7 @@ namespace asbit {
     //% direction.defl=CarDirection.Forward
     //% weight=90
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
 
@@ -215,6 +217,7 @@ namespace asbit {
     //% time.defl=1
     //% weight=89
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function car_run_for_time(direction: CarDirection, speed: number, time: number): void {
         car_run(direction, speed);
         basic.pause(time * 1000); // Convert seconds to milliseconds
@@ -234,6 +237,7 @@ namespace asbit {
     //% leftSpeed.defl=80 rightSpeed.defl=80
     //% inlineInputMode=inline
     //% weight=88
+    //% block.color=#FF4500
     export function moveWithSpeeds(
         direction: CarDirection,
         leftSpeed: number,
@@ -289,6 +293,7 @@ namespace asbit {
     //% time.defl=1
     //% weight=87
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function moveWithSpeeds_for_time(
         direction: CarDirection,
         leftSpeed: number,
@@ -306,6 +311,7 @@ namespace asbit {
     //% block="Car stop"
     //% weight=86
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function car_stop(): void {
         stopCar();
     }
@@ -314,6 +320,7 @@ namespace asbit {
     //% block="---" blockHidden=true
     //% block="Line Follow"
     //% blockHidden=true
+    //% block.color=#228B22
     export function LineFollowHeader(): void { }
 
     // === New Block: Set Line Follower Speeds ===
@@ -327,6 +334,7 @@ namespace asbit {
     //% turnSpeed.defl=50
     //% weight=85
     //% inlineInputMode=inline
+    //% block.color=#228B22
     export function setLineFollowerSpeeds(speed: number, turnSpeed: number): void {
         lineFollowSpeed = speed;
         lineFollowTurnSpeed = turnSpeed;
@@ -341,6 +349,7 @@ namespace asbit {
     //% speed.min=0 speed.max=100
     //% speed.defl=50
     //% weight=83
+    //% block.color=#228B22
     export function turnUntilLine(direction: CarDirection, speed: number): void {
         if (direction === CarDirection.SpinLeft || direction === CarDirection.SpinRight) {
             while (true) {
@@ -368,6 +377,7 @@ namespace asbit {
     //% checkpoints.defl=1
     //% weight=84
     //% inlineInputMode=inline
+    //% block.color=#228B22
     export function lineFollowUntilCheckpoints(checkpoints: number): void {
         let detectedCheckpoints = 0;
         while (detectedCheckpoints < checkpoints) {
@@ -427,6 +437,7 @@ namespace asbit {
     //% block="---" blockHidden=true
     //% block="Sensors"
     //% blockHidden=true
+    //% block.color=#32CD32
     export function SensorsHeader(): void { }
 
     // === Ultrasonic Block ===
@@ -436,6 +447,7 @@ namespace asbit {
     //% block="Ultrasonic distance (cm)"
     //% weight=80
     //% inlineInputMode=inline
+    //% block.color=#32CD32
     export function ultra(): number {
         pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
         pins.analogWritePin(ULTRASONIC_TRIG, 0);
@@ -459,6 +471,7 @@ namespace asbit {
     //% comparison.defl=Comparison.LessThan
     //% weight=79
     //% inlineInputMode=inline
+    //% block.color=#32CD32
     export function waitUntilDistance(comparison: Comparison, value: number): void {
         while (true) {
             const distance = ultra();
@@ -495,6 +508,7 @@ namespace asbit {
     //% block="Read %sensor IR sensor as %mode"
     //% weight=78
     //% inlineInputMode=inline
+    //% block.color=#32CD32
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
         const pin =
             sensor === IRSensor.Left ? IR_LEFT :
@@ -509,6 +523,7 @@ namespace asbit {
     //% block="---" blockHidden=true
     //% block="RGB Control"
     //% blockHidden=true
+    //% block.color=#696969
     export function RGBControlHeader(): void { }
 
     // === Set RGB Color Block ===
@@ -518,6 +533,7 @@ namespace asbit {
     //% block="Set RGB color to %color"
     //% weight=75
     //% inlineInputMode=inline
+    //% block.color=#696969
     export function setRgbColor(color: Color): void {
         switch (color) {
             case Color.Red:
@@ -567,6 +583,7 @@ namespace asbit {
     //% block="---" blockHidden=true
     //% block="Advanced Line Following"
     //% blockHidden=true
+    //% block.color=#228B22
     export function AdvancedLineFollowingHeader(): void { }
 
     /**
@@ -575,6 +592,7 @@ namespace asbit {
     //% block="set %blackOrWhite calibration values left %left middle %middle right %right"
     //% left.defl=100 middle.defl=100 right.defl=100
     //% subcategory="Advanced Line Following"
+    //% block.color=#228B22
     export function setCalibration(blackOrWhite: BlackOrWhite, left: number, middle: number, right: number): void {
         if (blackOrWhite == BlackOrWhite.Black) {
             blackLeft = left;
@@ -594,6 +612,7 @@ namespace asbit {
     //% block="auto-calibrate IR sensors"
     //% subcategory="Advanced Line Following"
     //% weight=80
+    //% block.color=#228B22
     export function autoCalibrate(): void {
         // Calibrate White
         basic.pause(2000); // Give user time to place on white surface
@@ -616,6 +635,7 @@ namespace asbit {
     //% block="set PID values Kp %p Ki %i Kd %d"
     //% p.defl=0.6 i.defl=0.0 d.defl=8.0
     //% subcategory="Advanced Line Following"
+    //% block.color=#228B22
     export function setPID(p: number, i: number, d: number): void {
         Kp = p;
         Ki = i;
@@ -628,6 +648,7 @@ namespace asbit {
     //% block="set speed min %min base %base max %max"
     //% min.defl=20 base.defl=50 max.defl=100
     //% subcategory="Advanced Line Following"
+    //% block.color=#228B22
     export function setSpeed(min: number, base: number, max: number): void {
         minSpeed = min;
         baseSpeed = base;
@@ -639,6 +660,7 @@ namespace asbit {
      */
     //% block="show IR sensor readings"
     //% subcategory="Advanced Line Following"
+    //% block.color=#228B22
     export function showSensorReadings(): void {
         const l = pins.analogReadPin(IR_LEFT_ANALOG);
         const m = pins.analogReadPin(IR_MIDDLE_ANALOG);
@@ -652,6 +674,7 @@ namespace asbit {
     //% block="follow line with PID until %numCheckpoints checkpoints"
     //% numCheckpoints.defl=1
     //% subcategory="Advanced Line Following"
+    //% block.color=#228B22
     export function followLinePID(numCheckpoints: number): void {
         let checkpointsPassed = 0;
         let onCheckpoint = false;
@@ -699,6 +722,7 @@ namespace asbit {
     //% block="---" blockHidden=true
     //% block="Activities or Games"
     //% blockHidden=true
+    //% block.color=#FF4500
     export function ActivitiesHeader(): void { }
 
     /**
@@ -710,6 +734,7 @@ namespace asbit {
     //% distance.min=5 distance.defl=20
     //% subcategory="Activities or Games"
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function trackUser(speed: number, distance: number): void {
         while (true) {
             const currentDistance = ultra();
@@ -736,6 +761,7 @@ namespace asbit {
     //% distance.min=5 distance.defl=20
     //% subcategory="Activities or Games"
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function avoidObstacles(speed: number, distance: number): void {
         while (true) {
             const currentDistance = ultra();
