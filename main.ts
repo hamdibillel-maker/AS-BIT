@@ -83,6 +83,7 @@ namespace asbit {
     //% block="Car stop"
     //% weight=95
     //% subcategory="Car Control"
+    //% inlineInputMode=inline
     export function car_stop(): void {
         stopCar();
     }
@@ -97,6 +98,7 @@ namespace asbit {
     //% direction.defl=CarDirection.Forward
     //% weight=90
     //% subcategory="Car Control"
+    //% inlineInputMode=inline
     export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
 
@@ -148,24 +150,6 @@ namespace asbit {
                 break;
         }
     }
-
-    // === New Block: Simple Move with Time ===
-    /**
-     * Move in direction at speed for a duration in milliseconds.
-     */
-    //% block="Car move %direction at speed %speed for %time ms"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=80
-    //% direction.defl=CarDirection.Forward
-    //% time.defl=1000
-    //% weight=88
-    //% subcategory="Car Control"
-    export function car_run_for_time(direction: CarDirection, speed: number, time: number): void {
-        car_run(direction, speed);
-        basic.pause(time);
-        stopCar();
-    }
-
 
     // === Block 2: Advanced Move (spin turns for Left/Right) ===
     /**
@@ -222,6 +206,25 @@ namespace asbit {
         }
     }
 
+    // === New Block: Simple Move with Time ===
+    /**
+     * Move in direction at speed for a duration in milliseconds.
+     */
+    //% block="Car move %direction at speed %speed for %time ms"
+    //% speed.min=0 speed.max=100
+    //% speed.defl=80
+    //% direction.defl=CarDirection.Forward
+    //% time.defl=1000
+    //% weight=88
+    //% subcategory="Car Control"
+    //% inlineInputMode=inline
+    export function car_run_for_time(direction: CarDirection, speed: number, time: number): void {
+        car_run(direction, speed);
+        basic.pause(time);
+        stopCar();
+    }
+
+
     // === New Block: Advanced Move with Time ===
     /**
      * Move with custom speeds for a duration in milliseconds.
@@ -234,6 +237,7 @@ namespace asbit {
     //% time.defl=1000
     //% weight=87
     //% subcategory="Car Control"
+    //% inlineInputMode=inline
     export function moveWithSpeeds_for_time(
         direction: CarDirection,
         leftSpeed: number,
@@ -244,7 +248,61 @@ namespace asbit {
         basic.pause(time);
         stopCar();
     }
+    
+    // === New Block: Line Follow ===
+    /**
+     * Follow a line using the three IR sensors.
+     * Assumes a line is read as a digital value of 0.
+     */
+    //% block="Line Follow at speed %speed and turn speed %turnSpeed"
+    //% speed.min=0 speed.max=100
+    //% speed.defl=80
+    //% turnSpeed.min=0 turnSpeed.max=100
+    //% turnSpeed.defl=50
+    //% weight=85
+    //% subcategory="Car Control"
+    //% inlineInputMode=inline
+    export function lineFollow(speed: number, turnSpeed: number): void {
+        while (true) {
+            const leftSensor = pins.digitalReadPin(IR_LEFT);
+            const middleSensor = pins.digitalReadPin(IR_MIDDLE);
+            const rightSensor = pins.digitalReadPin(IR_RIGHT);
 
+            const sensorState = (leftSensor << 2) | (middleSensor << 1) | rightSensor;
+
+            switch (sensorState) {
+                case 1: // 001: Right sensor on line
+                    car_run(CarDirection.SpinRight, turnSpeed);
+                    break;
+                case 2: // 010: Middle sensor on line
+                    car_run(CarDirection.Forward, speed);
+                    break;
+                case 3: // 011: Middle and right sensors on line
+                    // A smooth right spin to get back on the line.
+                    car_run(CarDirection.SpinRight, turnSpeed);
+                    break;
+                case 4: // 100: Left sensor on line
+                    car_run(CarDirection.SpinLeft, turnSpeed);
+                    break;
+                case 5: // 101: Both outer sensors on line (corner or turn)
+                    // Continue forward slowly
+                    moveWithSpeeds(CarDirection.Forward, speed * 0.5, speed * 0.5);
+                    break;
+                case 6: // 110: Left and middle sensors on line
+                    // A smooth left spin to get back on the line.
+                    car_run(CarDirection.SpinLeft, turnSpeed);
+                    break;
+                case 7: // 111: All three on line (checkpoint)
+                    car_stop();
+                    break;
+                default: // 000: No sensors on line
+                    // Spin in place to find the line
+                    car_run(CarDirection.SpinLeft, turnSpeed);
+                    break;
+            }
+            basic.pause(5); // A small pause to prevent the loop from running too fast.
+        }
+    }
 
     // === Sensors Blocks ===
 
@@ -254,6 +312,7 @@ namespace asbit {
     //% block="Ultrasonic distance (cm)"
     //% weight=80
     //% subcategory="Sensors"
+    //% inlineInputMode=inline
     export function ultra(): number {
         pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
         pins.analogWritePin(ULTRASONIC_TRIG, 0);
@@ -273,6 +332,7 @@ namespace asbit {
     //% block="Read %sensor IR sensor as %mode"
     //% weight=79
     //% subcategory="Sensors"
+    //% inlineInputMode=inline
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
         const pin = 
             sensor === IRSensor.Left ? IR_LEFT :
@@ -281,77 +341,5 @@ namespace asbit {
         return mode === ReadMode.Analog
             ? pins.analogReadPin(pin)
             : pins.digitalReadPin(pin);
-    }
-
-    // === RGB Control (Two Blocks) ===
-
-    /**
-     * Set RGB brightness (0-100)
-     * Default is 100, so RGB works without this block
-     */
-    //% block="Set RGB brightness %brightness"
-    //% brightness.min=0 brightness.max=100
-    //% brightness.defl=100
-    //% weight=71
-    //% subcategory="RGB Control"
-    export function setRGBBrightness(brightness: number): void {
-        rgbBrightness = Math.max(0, Math.min(100, brightness)); // clamp 0-100
-    }
-
-    /**
-     * Set RGB color (uses current brightness)
-     */
-    //% block="Set RGB to %color"
-    //% weight=70
-    //% subcategory="RGB Control"
-    export function setRGB(color: Color): void {
-        const level = Math.map(rgbBrightness, 0, 100, 0, 1023);
-
-        // Always turn all off first
-        pins.analogWritePin(RGB_RED, 0);
-        pins.analogWritePin(RGB_GREEN, 0);
-        pins.analogWritePin(RGB_BLUE, 0);
-
-        switch (color) {
-            case Color.Red:
-                pins.analogWritePin(RGB_RED, level);
-                pins.analogWritePin(RGB_GREEN, 0);
-                pins.analogWritePin(RGB_BLUE, 0);
-                break;
-            case Color.Green:
-                pins.analogWritePin(RGB_RED, 0);
-                pins.analogWritePin(RGB_GREEN, level);
-                pins.analogWritePin(RGB_BLUE, 0);
-                break;
-            case Color.Blue:
-                pins.analogWritePin(RGB_RED, 0);
-                pins.analogWritePin(RGB_GREEN, 0);
-                pins.analogWritePin(RGB_BLUE, level);
-                break;
-            case Color.Yellow:
-                pins.analogWritePin(RGB_RED, level);
-                pins.analogWritePin(RGB_GREEN, level);
-                pins.analogWritePin(RGB_BLUE, 0);
-                break;
-            case Color.Purple:
-                pins.analogWritePin(RGB_RED, level);
-                pins.analogWritePin(RGB_GREEN, 0);
-                pins.analogWritePin(RGB_BLUE, level);
-                break;
-            case Color.Cyan:
-                pins.analogWritePin(RGB_RED, 0);
-                pins.analogWritePin(RGB_GREEN, level);
-                pins.analogWritePin(RGB_BLUE, level);
-                break;
-            case Color.White:
-                pins.analogWritePin(RGB_RED, level);
-                pins.analogWritePin(RGB_GREEN, level);
-                pins.analogWritePin(RGB_BLUE, level);
-                break;
-            case Color.Off:
-            default:
-                // All already off
-                break;
-        }
     }
 }
