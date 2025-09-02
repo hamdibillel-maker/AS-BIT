@@ -1,11 +1,11 @@
 {
-    "name": "asbit",
+    "name": "AS BIT",
     "version": "1.0.0",
     "description": "AS BIT Robot blocks for motor, sensors, line follower, and remote control",
-    "author": "YourName",
+    "author": "hamdi billel",
     "license": "MIT",
     "dependencies": {
-        "core": "github:microsoft/pxt-core",
+        "core": "*",
         "ir-nec": "github:safehavenmakers/pxt-ir-nec#v1.0.0"
     },
     "target": "microbit",
