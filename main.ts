@@ -1,6 +1,6 @@
 /**
  * AS BIT Robot
- * Final version: two RGB blocks, safe pin control, correct color logic.
+ * Final version: safe pin control, correct color logic, fixed IR, ultrasonic, and blocking issues.
  */
 //% color=#7B68EE icon="\uf1b9" block="AS BIT"
 namespace asbit {
@@ -27,6 +27,9 @@ namespace asbit {
     const RGB_GREEN = DigitalPin.P4;
     const RGB_BLUE = DigitalPin.P3;
 
+    // === IR Receiver Pin ===
+    const IR_RECEIVER_PIN = DigitalPin.P6;
+
     // === Internal: brightness control ===
     let rgbBrightness = 100; // Default brightness
 
@@ -43,13 +46,21 @@ namespace asbit {
     let lastError = 0;
     let integral = 0;
 
-    // === Auto-setup: Sound → PIN9, RGB off by default ===
+    // === Flags for non-blocking activities ===
+    let trackingActive = false;
+    let avoidanceActive = false;
+
+    // === Default speed and distance for activities ===
+    let activitySpeed = 100;
+    let activityDistance = 15;
+
+    // === Auto-setup: Sound → PIN9, RGB off, IR on P6 ===
     control.onEvent(1, 1, () => {
         pins.setAudioPin(BUZZER_PIN);
-        // Turn off all RGB pins at start
         pins.analogWritePin(RGB_RED, 0);
         pins.analogWritePin(RGB_GREEN, 0);
         pins.analogWritePin(RGB_BLUE, 0);
+        ir.setIrPin(IR_RECEIVER_PIN);  // ✅ Correct for ir-nec
     });
 
     // === Enums ===
@@ -95,6 +106,8 @@ namespace asbit {
         //% block="less than"
         LessThan,
         //% block="greater than"
+        GreaterThan,
+        //% block="equal to"
         EqualTo
     }
 
@@ -144,19 +157,13 @@ namespace asbit {
     export function CarControlHeader(): void { }
 
     // === Block 1: Simple Move (with SpinLeft/SpinRight) ===
-    /**
-     * Move in direction at speed 0-100
-     */
     //% block="Car move %direction at speed %speed"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=80
+    //% speed.min=0 speed.max=100 speed.defl=80
     //% direction.defl=CarDirection.Forward
-    //% weight=90
-    //% inlineInputMode=inline
+    //% weight=90 inlineInputMode=inline
     //% block.color=#FF4500
     export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
-
         switch (direction) {
             case CarDirection.Forward:
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
@@ -164,40 +171,31 @@ namespace asbit {
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
-
             case CarDirection.Backward:
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, pwm);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, pwm);
                 break;
-
             case CarDirection.Left:
-                // Pivot left: only right wheel moves
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
-
             case CarDirection.Right:
-                // Pivot right: only left wheel moves
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
-
             case CarDirection.SpinLeft:
-                // Spin in place left
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, pwm);
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
-
             case CarDirection.SpinRight:
-                // Spin in place right
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, pwm);
@@ -206,37 +204,24 @@ namespace asbit {
         }
     }
 
-    // === New Block: Simple Move with Time ===
-    /**
-     * Move in direction at speed for a duration in seconds.
-     */
     //% block="Car move %direction at speed %speed for %time s"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=80
+    //% speed.min=0 speed.max=100 speed.defl=80
     //% direction.defl=CarDirection.Forward
     //% time.defl=1
-    //% weight=89
-    //% inlineInputMode=inline
+    //% weight=89 inlineInputMode=inline
     //% block.color=#FF4500
     export function car_run_for_time(direction: CarDirection, speed: number, time: number): void {
         car_run(direction, speed);
-        basic.pause(time * 1000); // Convert seconds to milliseconds
+        basic.pause(time * 1000);
         stopCar();
     }
 
-    // === Block 2: Advanced Move (spin turns for Left/Right) ===
-    /**
-     * Move in direction with custom left and right speeds (0-100)
-     * Left = spin left (left back, right forward)
-     * Right = spin right (left forward, right back)
-     */
     //% block="Move %direction left speed %leftSpeed right speed %rightSpeed"
     //% direction.defl=CarDirection.Forward
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
     //% leftSpeed.defl=80 rightSpeed.defl=80
-    //% inlineInputMode=inline
-    //% weight=88
+    //% weight=88 inlineInputMode=inline
     //% block.color=#FF4500
     export function moveWithSpeeds(
         direction: CarDirection,
@@ -245,7 +230,6 @@ namespace asbit {
     ): void {
         const leftPwm = Math.map(leftSpeed, 0, 100, 0, 1023);
         const rightPwm = Math.map(rightSpeed, 0, 100, 0, 1023);
-
         switch (direction) {
             case CarDirection.Forward:
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, leftPwm);
@@ -253,24 +237,19 @@ namespace asbit {
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, rightPwm);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
-
             case CarDirection.Backward:
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, leftPwm);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, rightPwm);
                 break;
-
             case CarDirection.Left:
-                // Spin left: left backward, right forward
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, leftPwm);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, rightPwm);
                 pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
                 break;
-
             case CarDirection.Right:
-                // Spin right: left forward, right backward
                 pins.analogWritePin(LEFT_MOTOR_FORWARD, leftPwm);
                 pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
                 pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
@@ -279,20 +258,13 @@ namespace asbit {
         }
     }
 
-    // === New Block: Advanced Move with Time (spin turns for Left/Right) ===
-    /**
-     * Move with custom speeds for a duration in seconds.
-     * Left = spin left (left back, right forward)
-     * Right = spin right (left forward, right back)
-     */
     //% block="Move %direction left speed %leftSpeed right speed %rightSpeed for %time s"
     //% direction.defl=CarDirection.Forward
     //% leftSpeed.min=0 leftSpeed.max=100
     //% rightSpeed.min=0 rightSpeed.max=100
     //% leftSpeed.defl=80 rightSpeed.defl=80
     //% time.defl=1
-    //% weight=87
-    //% inlineInputMode=inline
+    //% weight=87 inlineInputMode=inline
     //% block.color=#FF4500
     export function moveWithSpeeds_for_time(
         direction: CarDirection,
@@ -301,275 +273,167 @@ namespace asbit {
         time: number
     ): void {
         moveWithSpeeds(direction, leftSpeed, rightSpeed);
-        basic.pause(time * 1000); // Convert seconds to milliseconds
+        basic.pause(time * 1000);
         stopCar();
     }
 
-    /**
-     * Stops the car's motors.
-     */
     //% block="Car stop"
-    //% weight=86
-    //% inlineInputMode=inline
+    //% weight=86 inlineInputMode=inline
     //% block.color=#FF4500
     export function car_stop(): void {
         stopCar();
     }
 
-    // === Block Category Headers (simulating the image provided) ===
+    // === Block Category Headers ===
     //% block="---" blockHidden=true
     //% block="Line Follow"
     //% blockHidden=true
     //% block.color=#228B22
     export function LineFollowHeader(): void { }
 
-    // === New Block: Set Line Follower Speeds ===
-    /**
-     * Sets the speed and turn speed for the line follower.
-     */
     //% block="Set line follower speed to %speed and turn speed to %turnSpeed"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=80
-    //% turnSpeed.min=0 turnSpeed.max=100
-    //% turnSpeed.defl=50
-    //% weight=85
-    //% inlineInputMode=inline
+    //% speed.min=0 speed.max=100 speed.defl=80
+    //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
+    //% weight=85 inlineInputMode=inline
     //% block.color=#228B22
     export function setLineFollowerSpeeds(speed: number, turnSpeed: number): void {
         lineFollowSpeed = speed;
         lineFollowTurnSpeed = turnSpeed;
     }
 
-    /**
-     * Turn until a line is detected by the middle IR sensor.
-     * Useful for re-acquiring the line after losing it.
-     */
     //% block="Turn %direction until line detected at speed %speed"
     //% direction.defl=CarDirection.SpinLeft
-    //% speed.min=0 speed.max=100
-    //% speed.defl=50
+    //% speed.min=0 speed.max=100 speed.defl=50
     //% weight=83
     //% block.color=#228B22
     export function turnUntilLine(direction: CarDirection, speed: number): void {
-        if (direction === CarDirection.SpinLeft || direction === CarDirection.SpinRight) {
-            while (true) {
-                const middleOnLine = pins.analogReadPin(IR_MIDDLE_ANALOG) > whiteMid;
-                
-                // If the middle sensor detects the line, stop and break
-                if (middleOnLine) {
-                    car_stop();
-                    break;
-                }
-                
-                // Otherwise, continue spinning
-                car_run(direction, speed);
-                basic.pause(10);
+        if (direction !== CarDirection.SpinLeft && direction !== CarDirection.SpinRight) return;
+        while (true) {
+            const value = pins.analogReadPin(IR_MIDDLE_ANALOG);
+            const isOnLine = value < (blackMid + whiteMid) / 2;
+            if (isOnLine) {
+                car_stop();
+                break;
             }
+            car_run(direction, speed);
+            basic.pause(10);
         }
     }
 
-    // === New Block: Line Follow until Checkpoints ===
-    /**
-     * Follow a line until a specified number of checkpoints are detected.
-     */
     //% block="do line following until %checkpoints checkpoints detected"
-    //% checkpoints.min=1
-    //% checkpoints.defl=1
-    //% weight=84
-    //% inlineInputMode=inline
+    //% checkpoints.min=1 checkpoints.defl=1
+    //% weight=84 inlineInputMode=inline
     //% block.color=#228B22
     export function lineFollowUntilCheckpoints(checkpoints: number): void {
         let detectedCheckpoints = 0;
         while (detectedCheckpoints < checkpoints) {
-            const leftSensor = pins.digitalReadPin(IR_LEFT);
-            const middleSensor = pins.digitalReadPin(IR_MIDDLE);
-            const rightSensor = pins.digitalReadPin(IR_RIGHT);
+            const l = pins.digitalReadPin(IR_LEFT);
+            const m = pins.digitalReadPin(IR_MIDDLE);
+            const r = pins.digitalReadPin(IR_RIGHT);
+            const state = (l << 2) | (m << 1) | r;
 
-            const sensorState = (leftSensor << 2) | (middleSensor << 1) | rightSensor;
-
-            switch (sensorState) {
-                case 1: // 001: Right sensor on line
-                    car_run(CarDirection.SpinRight, lineFollowTurnSpeed);
-                    lastDirection = CarDirection.SpinRight;
-                    break;
-                case 2: // 010: Middle sensor on line
-                    car_run(CarDirection.Forward, lineFollowSpeed);
-                    lastDirection = CarDirection.Forward;
-                    break;
-                case 3: // 011: Middle and right sensors on line
-                    car_run(CarDirection.SpinRight, lineFollowTurnSpeed);
-                    lastDirection = CarDirection.SpinRight;
-                    break;
-                case 4: // 100: Left sensor on line
-                    car_run(CarDirection.SpinLeft, lineFollowTurnSpeed);
-                    lastDirection = CarDirection.SpinLeft;
-                    break;
-                case 5: // 101: Both outer sensors on line (corner or turn)
-                    // Continue forward slowly
-                    moveWithSpeeds(CarDirection.Forward, lineFollowSpeed * 0.5, lineFollowSpeed * 0.5);
-                    lastDirection = CarDirection.Forward;
-                    break;
-                case 6: // 110: Left and middle sensors on line
-                    car_run(CarDirection.SpinLeft, lineFollowTurnSpeed);
-                    lastDirection = CarDirection.SpinLeft;
-                    break;
-                case 7: // 111: All three on line (checkpoint)
+            switch (state) {
+                case 1: car_run(CarDirection.SpinRight, lineFollowTurnSpeed); break;
+                case 2: car_run(CarDirection.Forward, lineFollowSpeed); break;
+                case 3: car_run(CarDirection.SpinRight, lineFollowTurnSpeed); break;
+                case 4: car_run(CarDirection.SpinLeft, lineFollowTurnSpeed); break;
+                case 5: moveWithSpeeds(CarDirection.Forward, lineFollowSpeed * 0.5, lineFollowSpeed * 0.5); break;
+                case 6: car_run(CarDirection.SpinLeft, lineFollowTurnSpeed); break;
+                case 7:
                     detectedCheckpoints++;
                     car_stop();
-                    // A small pause to prevent multiple checkpoint detections in a row.
                     basic.pause(500);
                     break;
-                default: // 000: No sensors on line
-                    // Use the last known direction to find the line
-                    if (lastDirection === CarDirection.SpinRight) {
-                         car_run(CarDirection.SpinRight, lineFollowTurnSpeed);
-                    } else {
-                         car_run(CarDirection.SpinLeft, lineFollowTurnSpeed);
-                    }
+                default:
+                    if (lastDirection === CarDirection.SpinRight)
+                        car_run(CarDirection.SpinRight, lineFollowTurnSpeed);
+                    else
+                        car_run(CarDirection.SpinLeft, lineFollowTurnSpeed);
                     break;
             }
-            basic.pause(5); // A small pause to prevent the loop from running too fast.
+            basic.pause(5);
         }
         car_stop();
     }
 
-    // === Block Category Headers (simulating the image provided) ===
+    // === Block Category Headers ===
     //% block="---" blockHidden=true
     //% block="Sensors"
     //% blockHidden=true
     //% block.color=#32CD32
     export function SensorsHeader(): void { }
 
-    // === Ultrasonic Block ===
-    /**
-     * Get ultrasonic distance in cm
-     */
     //% block="Ultrasonic distance (cm)"
-    //% weight=80
-    //% inlineInputMode=inline
+    //% weight=80 inlineInputMode=inline
     //% block.color=#32CD32
     export function ultra(): number {
         pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
-        pins.analogWritePin(ULTRASONIC_TRIG, 0);
+        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
         control.waitMicros(2);
-        pins.analogWritePin(ULTRASONIC_TRIG, 1023);
+        pins.digitalWritePin(ULTRASONIC_TRIG, 1);
         control.waitMicros(10);
-        pins.analogWritePin(ULTRASONIC_TRIG, 0);
-
+        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
         const d = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
         const cm = Math.round(d / 58);
         return cm > 0 ? cm : 0;
     }
 
-    // === New Block: Wait Until Ultrasonic Distance ===
-    /**
-     * Wait until the ultrasonic sensor reads a distance that meets a condition.
-     */
-    //% block="wait until ultrasonic distance is %comparison %value cm"
-    //% value.min=0
-    //% value.defl=10
-    //% comparison.defl=Comparison.LessThan
-    //% weight=79
-    //% inlineInputMode=inline
-    //% block.color=#32CD32
-    export function waitUntilDistance(comparison: Comparison, value: number): void {
-        while (true) {
-            const distance = ultra();
-            let conditionMet = false;
-            switch (comparison) {
-                case Comparison.LessThan:
-                    if (distance < value) {
-                        conditionMet = true;
-                    }
-                    break;
-                case Comparison.GreaterThan:
-                    if (distance > value) {
-                        conditionMet = true;
-                    }
-                    break;
-                case Comparison.EqualTo:
-                    // Using a small range to account for sensor noise
-                    if (Math.abs(distance - value) <= 1) {
-                        conditionMet = true;
-                    }
-                    break;
-            }
-            if (conditionMet) {
-                break;
-            }
-            basic.pause(50);
-        }
-    }
-
-    // === Read IR Block ===
-    /**
-     * Read IR sensor as analog or digital
-     */
     //% block="Read %sensor IR sensor as %mode"
-    //% weight=78
-    //% inlineInputMode=inline
+    //% weight=78 inlineInputMode=inline
     //% block.color=#32CD32
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
-        const pin =
-            sensor === IRSensor.Left ? IR_LEFT :
-            sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
-
-        return mode === ReadMode.Analog
-            ? pins.analogReadPin(pin)
-            : pins.digitalReadPin(pin);
+        const pin = sensor === IRSensor.Left ? IR_LEFT :
+                   sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
+        return mode === ReadMode.Analog ? pins.analogReadPin(pin) : pins.digitalReadPin(pin);
     }
 
-    // === Block Category Headers (simulating the image provided) ===
+    // === Block Category Headers ===
     //% block="---" blockHidden=true
     //% block="RGB Control"
     //% blockHidden=true
     //% block.color=#696969
     export function RGBControlHeader(): void { }
 
-    // === Set RGB Color Block ===
-    /**
-     * Set the RGB color
-     */
     //% block="Set RGB color to %color"
-    //% weight=75
-    //% inlineInputMode=inline
+    //% weight=75 inlineInputMode=inline
     //% block.color=#696969
     export function setRgbColor(color: Color): void {
+        const pwm = Math.map(rgbBrightness, 0, 100, 0, 1023);
         switch (color) {
             case Color.Red:
-                pins.analogWritePin(RGB_RED, 1023);
+                pins.analogWritePin(RGB_RED, pwm);
                 pins.analogWritePin(RGB_GREEN, 0);
                 pins.analogWritePin(RGB_BLUE, 0);
                 break;
             case Color.Green:
                 pins.analogWritePin(RGB_RED, 0);
-                pins.analogWritePin(RGB_GREEN, 1023);
+                pins.analogWritePin(RGB_GREEN, pwm);
                 pins.analogWritePin(RGB_BLUE, 0);
                 break;
             case Color.Blue:
                 pins.analogWritePin(RGB_RED, 0);
                 pins.analogWritePin(RGB_GREEN, 0);
-                pins.analogWritePin(RGB_BLUE, 1023);
+                pins.analogWritePin(RGB_BLUE, pwm);
                 break;
             case Color.Yellow:
-                pins.analogWritePin(RGB_RED, 1023);
-                pins.analogWritePin(RGB_GREEN, 1023);
+                pins.analogWritePin(RGB_RED, pwm);
+                pins.analogWritePin(RGB_GREEN, pwm);
                 pins.analogWritePin(RGB_BLUE, 0);
                 break;
             case Color.Purple:
-                pins.analogWritePin(RGB_RED, 1023);
+                pins.analogWritePin(RGB_RED, pwm);
                 pins.analogWritePin(RGB_GREEN, 0);
-                pins.analogWritePin(RGB_BLUE, 1023);
+                pins.analogWritePin(RGB_BLUE, pwm);
                 break;
             case Color.Cyan:
                 pins.analogWritePin(RGB_RED, 0);
-                pins.analogWritePin(RGB_GREEN, 1023);
-                pins.analogWritePin(RGB_BLUE, 1023);
+                pins.analogWritePin(RGB_GREEN, pwm);
+                pins.analogWritePin(RGB_BLUE, pwm);
                 break;
             case Color.White:
-                pins.analogWritePin(RGB_RED, 1023);
-                pins.analogWritePin(RGB_GREEN, 1023);
-                pins.analogWritePin(RGB_BLUE, 1023);
+                pins.analogWritePin(RGB_RED, pwm);
+                pins.analogWritePin(RGB_GREEN, pwm);
+                pins.analogWritePin(RGB_BLUE, pwm);
                 break;
             case Color.Off:
                 pins.analogWritePin(RGB_RED, 0);
@@ -579,6 +443,14 @@ namespace asbit {
         }
     }
 
+    //% block="Set RGB brightness to %brightness"
+    //% brightness.min=0 brightness.max=100 brightness.defl=100
+    //% weight=76 inlineInputMode=inline
+    //% block.color=#696969
+    export function setRgbBrightness(brightness: number): void {
+        rgbBrightness = Math.constrain(brightness, 0, 100);
+    }
+
     // === Block Category Headers ===
     //% block="---" blockHidden=true
     //% block="Advanced Line Following"
@@ -586,194 +458,177 @@ namespace asbit {
     //% block.color=#228B22
     export function AdvancedLineFollowingHeader(): void { }
 
-    /**
-     * Set calibration values for black/white
-     */
     //% block="set %blackOrWhite calibration values left %left middle %middle right %right"
     //% left.defl=100 middle.defl=100 right.defl=100
     //% subcategory="Advanced Line Following"
     //% block.color=#228B22
     export function setCalibration(blackOrWhite: BlackOrWhite, left: number, middle: number, right: number): void {
         if (blackOrWhite == BlackOrWhite.Black) {
-            blackLeft = left;
-            blackMid = middle;
-            blackRight = right;
+            blackLeft = left; blackMid = middle; blackRight = right;
         } else {
-            whiteLeft = left;
-            whiteMid = middle;
-            whiteRight = right;
+            whiteLeft = left; whiteMid = middle; whiteRight = right;
         }
     }
 
-    /**
-     * Automatically calibrate IR sensors for white and black.
-     * Place the robot over a white surface first, then over the black line.
-     */
     //% block="auto-calibrate IR sensors"
     //% subcategory="Advanced Line Following"
     //% weight=80
     //% block.color=#228B22
     export function autoCalibrate(): void {
-        // Calibrate White
-        basic.pause(2000); // Give user time to place on white surface
+        basic.pause(2000);
         whiteLeft = pins.analogReadPin(IR_LEFT_ANALOG);
         whiteMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
         whiteRight = pins.analogReadPin(IR_RIGHT_ANALOG);
-
-        // Calibrate Black
-        basic.pause(2000); // Give user time to place on black surface
+        basic.pause(2000);
         blackLeft = pins.analogReadPin(IR_LEFT_ANALOG);
         blackMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
         blackRight = pins.analogReadPin(IR_RIGHT_ANALOG);
-        
         basic.pause(1000);
     }
 
-    /**
-     * Set PID constants
-     */
     //% block="set PID values Kp %p Ki %i Kd %d"
     //% p.defl=0.6 i.defl=0.0 d.defl=8.0
     //% subcategory="Advanced Line Following"
     //% block.color=#228B22
     export function setPID(p: number, i: number, d: number): void {
-        Kp = p;
-        Ki = i;
-        Kd = d;
+        Kp = p; Ki = i; Kd = d;
     }
 
-    /**
-     * Set speed range for PID control
-     */
     //% block="set speed min %min base %base max %max"
     //% min.defl=20 base.defl=50 max.defl=100
     //% subcategory="Advanced Line Following"
     //% block.color=#228B22
     export function setSpeed(min: number, base: number, max: number): void {
-        minSpeed = min;
-        baseSpeed = base;
-        maxSpeed = max;
+        minSpeed = min; baseSpeed = base; maxSpeed = max;
     }
 
-    /**
-     * Show IR sensor readings on serial monitor
-     */
     //% block="show IR sensor readings"
     //% subcategory="Advanced Line Following"
     //% block.color=#228B22
     export function showSensorReadings(): void {
-        const l = pins.analogReadPin(IR_LEFT_ANALOG);
-        const m = pins.analogReadPin(IR_MIDDLE_ANALOG);
-        const r = pins.analogReadPin(IR_RIGHT_ANALOG);
-        serial.writeLine("Left: " + l + " Middle: " + m + " Right: " + r);
+        serial.writeLine(`L: ${pins.analogReadPin(IR_LEFT_ANALOG)} M: ${pins.analogReadPin(IR_MIDDLE_ANALOG)} R: ${pins.analogReadPin(IR_RIGHT_ANALOG)}`);
     }
 
-    /**
-     * Follow line using PID until given number of checkpoints
-     */
     //% block="follow line with PID until %numCheckpoints checkpoints"
     //% numCheckpoints.defl=1
     //% subcategory="Advanced Line Following"
     //% block.color=#228B22
     export function followLinePID(numCheckpoints: number): void {
-        let checkpointsPassed = 0;
-        let onCheckpoint = false;
-
-        while (checkpointsPassed < numCheckpoints) {
+        let checkpoints = 0;
+        while (checkpoints < numCheckpoints) {
             const l = normalize(pins.analogReadPin(IR_LEFT_ANALOG), whiteLeft, blackLeft);
             const m = normalize(pins.analogReadPin(IR_MIDDLE_ANALOG), whiteMid, blackMid);
             const r = normalize(pins.analogReadPin(IR_RIGHT_ANALOG), whiteRight, blackRight);
-
-            // Detect checkpoint: all sensors "black" (>=0.8)
             if (l > 0.8 && m > 0.8 && r > 0.8) {
-                if (!onCheckpoint) {
-                    checkpointsPassed++;
-                    serial.writeLine("Checkpoint " + checkpointsPassed + " detected");
-                    onCheckpoint = true;
+                if (checkpoints < numCheckpoints) {
+                    checkpoints++;
+                    car_stop();
+                    basic.pause(500);
                 }
-            } else {
-                onCheckpoint = false;
             }
-
-            // If target reached → stop
-            if (checkpointsPassed >= numCheckpoints) {
-                stopCar();
-                break;
-            }
-
-            // PID control
-            const position = (l * -1 + m * 0 + r * 1) / (l + m + r);
-            const error = position;
-            integral += error;
-            const derivative = error - lastError;
-            const correction = Kp * error + Ki * integral + Kd * derivative;
-
-            let leftSpeed = clamp(baseSpeed - correction, minSpeed, maxSpeed);
-            let rightSpeed = clamp(baseSpeed + correction, minSpeed, maxSpeed);
-
-            driveMotors(leftSpeed, rightSpeed);
-            lastError = error;
+            if (checkpoints >= numCheckpoints) break;
+            const pos = (l * -1 + r * 1) / (l + m + r + 0.001);
+            const err = pos;
+            integral += err;
+            const deriv = err - lastError;
+            const corr = Kp * err + Ki * integral + Kd * deriv;
+            driveMotors(baseSpeed - corr, baseSpeed + corr);
+            lastError = err;
             basic.pause(10);
         }
-        stopCar();
+        car_stop();
     }
 
     // === Block Category Headers ===
     //% block="---" blockHidden=true
-    //% block="Activities or Games"
+    //% block="Activities"
     //% blockHidden=true
     //% block.color=#FF4500
     export function ActivitiesHeader(): void { }
 
     /**
+     * Set default speed and distance for tracking and obstacle avoidance.
+     */
+    //% block="Set activity speed to %speed and distance to %distance cm"
+    //% speed.min=0 speed.max=100
+    //% speed.defl=100
+    //% distance.min=5 distance.defl=15
+    //% subcategory="Activities"
+    //% weight=95
+    //% inlineInputMode=inline
+    export function setActivityDefaults(speed: number, distance: number): void {
+        activitySpeed = speed;
+        activityDistance = distance;
+    }
+
+    /**
      * The robot will follow a user at a specified distance.
      */
-    //% block="Track user at %speed speed to a distance of %distance cm"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=50
-    //% distance.min=5 distance.defl=20
-    //% subcategory="Activities or Games"
-    //% inlineInputMode=inline
-    //% block.color=#FF4500
-    export function trackUser(speed: number, distance: number): void {
-        while (true) {
-            const currentDistance = ultra();
-            const difference = currentDistance - distance;
-            const tolerance = 2; // Tolerance in cm
-
-            if (difference > tolerance) {
-                car_run(CarDirection.Forward, speed);
-            } else if (difference < -tolerance) {
-                car_run(CarDirection.Backward, speed);
-            } else {
-                car_stop();
+    //% block="Tracking mode"
+    //% subcategory="Activities"
+    //% weight=90
+    export function startTracking(): void {
+        if (trackingActive || avoidanceActive) return;
+        trackingActive = true;
+        avoidanceActive = false;
+        control.runInParallel(() => {
+            while (trackingActive) {
+                const currentDistance = ultra();
+                const difference = currentDistance - activityDistance;
+                const tolerance = 2;
+                if (difference > tolerance) {
+                    car_run(CarDirection.Forward, activitySpeed);
+                } else if (difference < -tolerance) {
+                    car_run(CarDirection.Backward, activitySpeed);
+                } else {
+                    car_stop();
+                }
+                basic.pause(50);
             }
-            basic.pause(50);
-        }
+            car_stop();
+        });
     }
 
     /**
      * The robot will run, and if it finds an obstacle, it will spin and keep going.
      */
-    //% block="Avoid obstacles at %speed speed less than %distance cm"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=50
-    //% distance.min=5 distance.defl=20
-    //% subcategory="Activities or Games"
-    //% inlineInputMode=inline
-    //% block.color=#FF4500
-    export function avoidObstacles(speed: number, distance: number): void {
-        while (true) {
-            const currentDistance = ultra();
-            if (currentDistance < distance && currentDistance > 0) {
-                car_stop();
-                basic.pause(100);
-                car_run(CarDirection.SpinLeft, speed);
-                basic.pause(Math.randomRange(500, 1500));
-            } else {
-                car_run(CarDirection.Forward, speed);
+    //% block="Avoid obstacles"
+    //% subcategory="Activities"
+    //% weight=85
+    export function startAvoidObstacles(): void {
+        if (avoidanceActive || trackingActive) return;
+        avoidanceActive = true;
+        trackingActive = false;
+        control.runInParallel(() => {
+            while (avoidanceActive) {
+                const currentDistance = ultra();
+                if (currentDistance < activityDistance && currentDistance > 0) {
+                    car_stop();
+                    basic.pause(100);
+                    car_run(CarDirection.SpinLeft, activitySpeed);
+                    basic.pause(Math.randomRange(500, 1500));
+                } else {
+                    car_run(CarDirection.Forward, activitySpeed);
+                }
+                basic.pause(50);
             }
-            basic.pause(50);
-        }
+            car_stop();
+        });
+    }
+
+    // === IR Remote Control Blocks ===
+    //% block="---" blockHidden=true
+    //% block="IR Remote Control"
+    //% blockHidden=true
+    //% block.color=#B8860B
+    export function IrHeader(): void { }
+
+    //% block="on IR button %button|pressed"
+    //% button.defl=ir.eButton.Power
+    //% subcategory="IR Remote Control"
+    //% weight=100
+    //% block.color=#B8860B
+    export function onIrButtonPressed(button: ir.eButton, handler: () => void): void {
+        ir.onPressEvent(button, handler);
     }
 }
