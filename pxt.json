@@ -1,15 +1,16 @@
 {
-    "name": "AS BIT",
-    "version": "1.0.0",
-    "description": "AS BIT Robot blocks for motor, sensors, line follower, and remote control",
-    "author": "hamdi billel",
-    "license": "MIT",
-    "dependencies": {
-        "core": "*",
-        "ir-nec": "github:safehavenmakers/pxt-ir-nec#1.0.0"
-    },
-    "target": "microbit",
-    "files": [
-        "main.ts"
-    ]
+    "name": "asbit",
+    "version": "1.0.0",
+    "description": "AS BIT robot extension with car control, sensors, RGB, PID line following, and IR remote.",
+    "dependencies": {
+        "core": "*",
+        "ir-nec": "github:safehavenmakers/pxt-ir-nec#v1.0.0"
+    },
+    "files": [
+        "main.ts"
+    ],
+    "public": true,
+    "supportedTargets": [
+        "microbit"
+    ]
 }
