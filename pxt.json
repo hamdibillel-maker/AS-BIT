@@ -1,14 +1,15 @@
 {
-  "name": "asbit-robot",
-  "version": "0.0.4",
-  "description": "AS BIT robot extension with car control, sensors, RGB, NeoPixel, and Bluetooth.",
-  "files": [
-    "main.ts"
-  ],
-  "dependencies": {
-    "core": "*",
-    "neopixel": "github:microsoft/pxt-neopixel"
-  },
-  "public": true,
-  "supportedTargets": ["microbit"]
+    "name": "asbit",
+    "version": "1.0.0",
+    "description": "AS BIT Robot blocks for motor, sensors, line follower, and remote control",
+    "author": "YourName",
+    "license": "MIT",
+    "dependencies": {
+        "core": "github:microsoft/pxt-core",
+        "ir-nec": "github:safehavenmakers/pxt-ir-nec#v1.0.0"
+    },
+    "target": "microbit",
+    "files": [
+        "main.ts"
+    ]
 }
