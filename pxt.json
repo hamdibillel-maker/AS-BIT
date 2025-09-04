@@ -3,8 +3,8 @@
     "version": "1.0.0",
     "description": "AS BIT robot extension with car control, sensors, RGB, PID line following, and IR remote.",
     "dependencies": {
-        "core": "*",
-        "ir-nec": "github:safehavenmakers/pxt-ir-nec#v1.0.0"
+        "core": "*"
+       
     },
     "files": [
         "main.ts"
