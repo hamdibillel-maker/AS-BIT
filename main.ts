@@ -286,16 +286,16 @@ namespace asbit {
 
     // === Block Category Headers ===
     //% block="---" blockHidden=true
-    //% block="Line Follow"
+    //% block="Line Following"
     //% blockHidden=true
-    //% block.color=#228B22
-    export function LineFollowHeader(): void { }
+    //% block.color=#3CB371
+    export function LineFollowingHeader(): void { }
 
     //% block="Set line follower speed to %speed and turn speed to %turnSpeed"
     //% speed.min=0 speed.max=100 speed.defl=80
     //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
     //% weight=85 inlineInputMode=inline
-    //% block.color=#228B22
+    //% block.color=#3CB371
     export function setLineFollowerSpeeds(speed: number, turnSpeed: number): void {
         lineFollowSpeed = speed;
         lineFollowTurnSpeed = turnSpeed;
@@ -305,9 +305,8 @@ namespace asbit {
     //% direction.defl=CarDirection.SpinLeft
     //% speed.min=0 speed.max=100 speed.defl=50
     //% weight=83
-    //% block.color=#228B22
+    //% block.color=#3CB371
     export function turnUntilLine(direction: CarDirection, speed: number): void {
-        if (direction !== CarDirection.SpinLeft && direction !== CarDirection.SpinRight) return;
         while (true) {
             const value = pins.analogReadPin(IR_MIDDLE_ANALOG);
             const isOnLine = value < (blackMid + whiteMid) / 2;
@@ -323,7 +322,7 @@ namespace asbit {
     //% block="do line following until %checkpoints checkpoints detected"
     //% checkpoints.min=1 checkpoints.defl=1
     //% weight=84 inlineInputMode=inline
-    //% block.color=#228B22
+    //% block.color=#3CB371
     export function lineFollowUntilCheckpoints(checkpoints: number): void {
         let detectedCheckpoints = 0;
         while (detectedCheckpoints < checkpoints) {
@@ -356,6 +355,81 @@ namespace asbit {
         car_stop();
     }
 
+    //% block="set %blackOrWhite calibration values left %left middle %middle right %right"
+    //% left.defl=100 middle.defl=100 right.defl=100
+    //% block.color=#3CB371
+    export function setCalibration(blackOrWhite: BlackOrWhite, left: number, middle: number, right: number): void {
+        if (blackOrWhite == BlackOrWhite.Black) {
+            blackLeft = left; blackMid = middle; blackRight = right;
+        } else {
+            whiteLeft = left; whiteMid = middle; whiteRight = right;
+        }
+    }
+
+    //% block="auto-calibrate IR sensors"
+    //% weight=80
+    //% block.color=#3CB371
+    export function autoCalibrate(): void {
+        basic.pause(2000);
+        whiteLeft = pins.analogReadPin(IR_LEFT_ANALOG);
+        whiteMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
+        whiteRight = pins.analogReadPin(IR_RIGHT_ANALOG);
+        basic.pause(2000);
+        blackLeft = pins.analogReadPin(IR_LEFT_ANALOG);
+        blackMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
+        blackRight = pins.analogReadPin(IR_RIGHT_ANALOG);
+        basic.pause(1000);
+    }
+
+    //% block="set PID values Kp %p Ki %i Kd %d"
+    //% p.defl=0.6 i.defl=0.0 d.defl=8.0
+    //% block.color=#3CB371
+    export function setPID(p: number, i: number, d: number): void {
+        Kp = p; Ki = i; Kd = d;
+    }
+
+    //% block="set speed min %min base %base max %max"
+    //% min.defl=20 base.defl=50 max.defl=100
+    //% block.color=#3CB371
+    export function setSpeed(min: number, base: number, max: number): void {
+        minSpeed = min; baseSpeed = base; maxSpeed = max;
+    }
+
+    //% block="show IR sensor readings"
+    //% block.color=#3CB371
+    export function showSensorReadings(): void {
+        serial.writeLine(`L: ${pins.analogReadPin(IR_LEFT_ANALOG)} M: ${pins.analogReadPin(IR_MIDDLE_ANALOG)} R: ${pins.analogReadPin(IR_RIGHT_ANALOG)}`);
+    }
+
+    //% block="follow line with PID until %numCheckpoints checkpoints"
+    //% numCheckpoints.defl=1
+    //% block.color=#3CB371
+    export function followLinePID(numCheckpoints: number): void {
+        let checkpoints = 0;
+        while (checkpoints < numCheckpoints) {
+            const l = normalize(pins.analogReadPin(IR_LEFT_ANALOG), whiteLeft, blackLeft);
+            const m = normalize(pins.analogReadPin(IR_MIDDLE_ANALOG), whiteMid, blackMid);
+            const r = normalize(pins.analogReadPin(IR_RIGHT_ANALOG), whiteRight, blackRight);
+            if (l > 0.8 && m > 0.8 && r > 0.8) {
+                if (checkpoints < numCheckpoints) {
+                    checkpoints++;
+                    car_stop();
+                    basic.pause(500);
+                }
+            }
+            if (checkpoints >= numCheckpoints) break;
+            const pos = (l * -1 + r * 1) / (l + m + r + 0.001);
+            const err = pos;
+            integral += err;
+            const deriv = err - lastError;
+            const corr = Kp * err + Ki * integral + Kd * deriv;
+            driveMotors(baseSpeed - corr, baseSpeed + corr);
+            lastError = err;
+            basic.pause(10);
+        }
+        car_stop();
+    }
+
     // === Block Category Headers ===
     //% block="---" blockHidden=true
     //% block="Sensors"
@@ -383,20 +457,20 @@ namespace asbit {
     //% block.color=#32CD32
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
         const pin = sensor === IRSensor.Left ? IR_LEFT :
-                   sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
+            sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
         return mode === ReadMode.Analog ? pins.analogReadPin(pin) : pins.digitalReadPin(pin);
     }
 
     // === Block Category Headers ===
     //% block="---" blockHidden=true
-    //% block="RGB Control"
+    //% block="Activities"
     //% blockHidden=true
-    //% block.color=#696969
-    export function RGBControlHeader(): void { }
+    //% block.color=#FF4500
+    export function ActivitiesHeader(): void { }
 
     //% block="Set RGB color to %color"
     //% weight=75 inlineInputMode=inline
-    //% block.color=#696969
+    //% block.color=#FF4500
     export function setRgbColor(color: Color): void {
         const pwm = Math.map(rgbBrightness, 0, 100, 0, 1023);
         switch (color) {
@@ -446,105 +520,10 @@ namespace asbit {
     //% block="Set RGB brightness to %brightness"
     //% brightness.min=0 brightness.max=100 brightness.defl=100
     //% weight=76 inlineInputMode=inline
-    //% block.color=#696969
+    //% block.color=#FF4500
     export function setRgbBrightness(brightness: number): void {
         rgbBrightness = Math.constrain(brightness, 0, 100);
     }
-
-    // === Block Category Headers ===
-    //% block="---" blockHidden=true
-    //% block="Advanced Line Following"
-    //% blockHidden=true
-    //% block.color=#228B22
-    export function AdvancedLineFollowingHeader(): void { }
-
-    //% block="set %blackOrWhite calibration values left %left middle %middle right %right"
-    //% left.defl=100 middle.defl=100 right.defl=100
-    //% subcategory="Advanced Line Following"
-    //% block.color=#228B22
-    export function setCalibration(blackOrWhite: BlackOrWhite, left: number, middle: number, right: number): void {
-        if (blackOrWhite == BlackOrWhite.Black) {
-            blackLeft = left; blackMid = middle; blackRight = right;
-        } else {
-            whiteLeft = left; whiteMid = middle; whiteRight = right;
-        }
-    }
-
-    //% block="auto-calibrate IR sensors"
-    //% subcategory="Advanced Line Following"
-    //% weight=80
-    //% block.color=#228B22
-    export function autoCalibrate(): void {
-        basic.pause(2000);
-        whiteLeft = pins.analogReadPin(IR_LEFT_ANALOG);
-        whiteMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
-        whiteRight = pins.analogReadPin(IR_RIGHT_ANALOG);
-        basic.pause(2000);
-        blackLeft = pins.analogReadPin(IR_LEFT_ANALOG);
-        blackMid = pins.analogReadPin(IR_MIDDLE_ANALOG);
-        blackRight = pins.analogReadPin(IR_RIGHT_ANALOG);
-        basic.pause(1000);
-    }
-
-    //% block="set PID values Kp %p Ki %i Kd %d"
-    //% p.defl=0.6 i.defl=0.0 d.defl=8.0
-    //% subcategory="Advanced Line Following"
-    //% block.color=#228B22
-    export function setPID(p: number, i: number, d: number): void {
-        Kp = p; Ki = i; Kd = d;
-    }
-
-    //% block="set speed min %min base %base max %max"
-    //% min.defl=20 base.defl=50 max.defl=100
-    //% subcategory="Advanced Line Following"
-    //% block.color=#228B22
-    export function setSpeed(min: number, base: number, max: number): void {
-        minSpeed = min; baseSpeed = base; maxSpeed = max;
-    }
-
-    //% block="show IR sensor readings"
-    //% subcategory="Advanced Line Following"
-    //% block.color=#228B22
-    export function showSensorReadings(): void {
-        serial.writeLine(`L: ${pins.analogReadPin(IR_LEFT_ANALOG)} M: ${pins.analogReadPin(IR_MIDDLE_ANALOG)} R: ${pins.analogReadPin(IR_RIGHT_ANALOG)}`);
-    }
-
-    //% block="follow line with PID until %numCheckpoints checkpoints"
-    //% numCheckpoints.defl=1
-    //% subcategory="Advanced Line Following"
-    //% block.color=#228B22
-    export function followLinePID(numCheckpoints: number): void {
-        let checkpoints = 0;
-        while (checkpoints < numCheckpoints) {
-            const l = normalize(pins.analogReadPin(IR_LEFT_ANALOG), whiteLeft, blackLeft);
-            const m = normalize(pins.analogReadPin(IR_MIDDLE_ANALOG), whiteMid, blackMid);
-            const r = normalize(pins.analogReadPin(IR_RIGHT_ANALOG), whiteRight, blackRight);
-            if (l > 0.8 && m > 0.8 && r > 0.8) {
-                if (checkpoints < numCheckpoints) {
-                    checkpoints++;
-                    car_stop();
-                    basic.pause(500);
-                }
-            }
-            if (checkpoints >= numCheckpoints) break;
-            const pos = (l * -1 + r * 1) / (l + m + r + 0.001);
-            const err = pos;
-            integral += err;
-            const deriv = err - lastError;
-            const corr = Kp * err + Ki * integral + Kd * deriv;
-            driveMotors(baseSpeed - corr, baseSpeed + corr);
-            lastError = err;
-            basic.pause(10);
-        }
-        car_stop();
-    }
-
-    // === Block Category Headers ===
-    //% block="---" blockHidden=true
-    //% block="Activities"
-    //% blockHidden=true
-    //% block.color=#FF4500
-    export function ActivitiesHeader(): void { }
 
     /**
      * Set default speed and distance for tracking and obstacle avoidance.
@@ -553,9 +532,9 @@ namespace asbit {
     //% speed.min=0 speed.max=100
     //% speed.defl=100
     //% distance.min=5 distance.defl=15
-    //% subcategory="Activities"
     //% weight=95
     //% inlineInputMode=inline
+    //% block.color=#FF4500
     export function setActivityDefaults(speed: number, distance: number): void {
         activitySpeed = speed;
         activityDistance = distance;
@@ -565,8 +544,8 @@ namespace asbit {
      * The robot will follow a user at a specified distance.
      */
     //% block="Tracking mode"
-    //% subcategory="Activities"
     //% weight=90
+    //% block.color=#FF4500
     export function startTracking(): void {
         if (trackingActive || avoidanceActive) return;
         trackingActive = true;
@@ -593,8 +572,8 @@ namespace asbit {
      * The robot will run, and if it finds an obstacle, it will spin and keep going.
      */
     //% block="Avoid obstacles"
-    //% subcategory="Activities"
     //% weight=85
+    //% block.color=#FF4500
     export function startAvoidObstacles(): void {
         if (avoidanceActive || trackingActive) return;
         avoidanceActive = true;
