@@ -1,10 +1,10 @@
 {
     "name": "asbit",
     "version": "1.0.0",
-    "description": "AS BIT robot extension with car control, sensors, RGB, PID line following, and IR remote.",
+    "description": "AS-BIT robot extension with car control, sensors, RGB, PID line following, ultrasonic, buzzer, and IR remote.",
     "dependencies": {
-        "core": "*"
-       
+        "core": "*",
+        "ir-nec": "github:safehavenmakers/pxt-ir-nec#v1.0.0"
     },
     "files": [
         "main.ts"
