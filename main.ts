@@ -60,7 +60,7 @@ namespace asbit {
         pins.analogWritePin(RGB_RED, 0);
         pins.analogWritePin(RGB_GREEN, 0);
         pins.analogWritePin(RGB_BLUE, 0);
-        ir.setIrPin(IR_RECEIVER_PIN);  // ✅ Correct for ir-nec
+        ir.setIrPin(IR_RECEIVER_PIN);
     });
 
     // === Enums ===
@@ -110,6 +110,12 @@ namespace asbit {
         //% block="equal to"
         EqualTo
     }
+    export enum SingleMotorDirection {
+        //% block="left"
+        Left,
+        //% block="right"
+        Right,
+    }
 
     // --- Helper function to stop the car ---
     function stopCar(): void {
@@ -157,7 +163,7 @@ namespace asbit {
     export function CarControlHeader(): void { }
 
     // === Block 1: Simple Move (with SpinLeft/SpinRight) ===
-    //% block="Car move %direction at speed %speed"
+    //% block="move %direction with (speed) %speed"
     //% speed.min=0 speed.max=100 speed.defl=80
     //% direction.defl=CarDirection.Forward
     //% weight=90 inlineInputMode=inline
@@ -204,7 +210,7 @@ namespace asbit {
         }
     }
 
-    //% block="Car move %direction at speed %speed for %time s"
+    //% block="move %direction with (speed) %speed for (time) S"
     //% speed.min=0 speed.max=100 speed.defl=80
     //% direction.defl=CarDirection.Forward
     //% time.defl=1
@@ -216,71 +222,35 @@ namespace asbit {
         stopCar();
     }
 
-    //% block="Move %direction left speed %leftSpeed right speed %rightSpeed"
-    //% direction.defl=CarDirection.Forward
-    //% leftSpeed.min=0 leftSpeed.max=100
-    //% rightSpeed.min=0 rightSpeed.max=100
-    //% leftSpeed.defl=80 rightSpeed.defl=80
+    //% block="Run %direction motor with (speed) %speed"
+    //% direction.defl=SingleMotorDirection.Left
+    //% speed.min=0 speed.max=100 speed.defl=80
     //% weight=88 inlineInputMode=inline
     //% block.color=#FF4500
-    export function moveWithSpeeds(
-        direction: CarDirection,
-        leftSpeed: number,
-        rightSpeed: number
-    ): void {
-        const leftPwm = Math.map(leftSpeed, 0, 100, 0, 1023);
-        const rightPwm = Math.map(rightSpeed, 0, 100, 0, 1023);
-        switch (direction) {
-            case CarDirection.Forward:
-                pins.analogWritePin(LEFT_MOTOR_FORWARD, leftPwm);
-                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
-                pins.analogWritePin(RIGHT_MOTOR_FORWARD, rightPwm);
-                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
-                break;
-            case CarDirection.Backward:
-                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
-                pins.analogWritePin(LEFT_MOTOR_BACKWARD, leftPwm);
-                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
-                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, rightPwm);
-                break;
-            case CarDirection.Left:
-                pins.analogWritePin(LEFT_MOTOR_FORWARD, 0);
-                pins.analogWritePin(LEFT_MOTOR_BACKWARD, leftPwm);
-                pins.analogWritePin(RIGHT_MOTOR_FORWARD, rightPwm);
-                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
-                break;
-            case CarDirection.Right:
-                pins.analogWritePin(LEFT_MOTOR_FORWARD, leftPwm);
-                pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
-                pins.analogWritePin(RIGHT_MOTOR_FORWARD, 0);
-                pins.analogWritePin(RIGHT_MOTOR_BACKWARD, rightPwm);
-                break;
+    export function runSingleMotor(direction: SingleMotorDirection, speed: number): void {
+        const pwm = Math.map(speed, 0, 100, 0, 1023);
+        if (direction === SingleMotorDirection.Left) {
+            pins.analogWritePin(LEFT_MOTOR_FORWARD, pwm);
+            pins.analogWritePin(LEFT_MOTOR_BACKWARD, 0);
+        } else {
+            pins.analogWritePin(RIGHT_MOTOR_FORWARD, pwm);
+            pins.analogWritePin(RIGHT_MOTOR_BACKWARD, 0);
         }
-    }
-
-    //% block="Move %direction left speed %leftSpeed right speed %rightSpeed for %time s"
-    //% direction.defl=CarDirection.Forward
-    //% leftSpeed.min=0 leftSpeed.max=100
-    //% rightSpeed.min=0 rightSpeed.max=100
-    //% leftSpeed.defl=80 rightSpeed.defl=80
-    //% time.defl=1
-    //% weight=87 inlineInputMode=inline
-    //% block.color=#FF4500
-    export function moveWithSpeeds_for_time(
-        direction: CarDirection,
-        leftSpeed: number,
-        rightSpeed: number,
-        time: number
-    ): void {
-        moveWithSpeeds(direction, leftSpeed, rightSpeed);
-        basic.pause(time * 1000);
-        stopCar();
     }
 
     //% block="Car stop"
     //% weight=86 inlineInputMode=inline
     //% block.color=#FF4500
     export function car_stop(): void {
+        stopCar();
+    }
+
+    //% block="Stop all activities"
+    //% weight=85
+    //% block.color=#FF4500
+    export function stopAllActivities(): void {
+        trackingActive = false;
+        avoidanceActive = false;
         stopCar();
     }
 
@@ -301,6 +271,60 @@ namespace asbit {
         lineFollowTurnSpeed = turnSpeed;
     }
 
+    //% block="do line following until %checkpoints checkpoints detected"
+    //% checkpoints.min=1 checkpoints.defl=1
+    //% weight=84 inlineInputMode=inline
+    //% block.color=#3CB371
+    export function lineFollowUntilCheckpoints(checkpoints: number): void {
+        let detectedCheckpoints = 0;
+        while (detectedCheckpoints < checkpoints) {
+            const l = pins.digitalReadPin(IR_LEFT);
+            const m = pins.digitalReadPin(IR_MIDDLE);
+            const r = pins.digitalReadPin(IR_RIGHT);
+            const state = (l << 2) | (m << 1) | r;
+
+            switch (state) {
+                case 1: // 001: Right sensor on line
+                case 3: // 011: Middle and right on line
+                    car_run(CarDirection.SpinRight, lineFollowTurnSpeed);
+                    lastDirection = CarDirection.SpinRight;
+                    break;
+                case 2: // 010: Middle sensor on line
+                    car_run(CarDirection.Forward, lineFollowSpeed);
+                    lastDirection = CarDirection.Forward;
+                    break;
+                case 4: // 100: Left sensor on line
+                case 6: // 110: Left and middle on line
+                    car_run(CarDirection.SpinLeft, lineFollowTurnSpeed);
+                    lastDirection = CarDirection.SpinLeft;
+                    break;
+                case 5: // 101: Left and right on line (sharp turn or intersection)
+                    // Added a more aggressive turn to handle this state effectively
+                    car_run(lastDirection, lineFollowTurnSpeed);
+                    break;
+                case 7: // 111: All three on line (checkpoint)
+                    if (checkpoints > 0) { // Only count checkpoints after the first loop iteration
+                        detectedCheckpoints++;
+                        car_stop();
+                        basic.pause(500);
+                    }
+                    break;
+                default: // 000: Off the line
+                    // Spin back in the last known direction to find the line again
+                    car_run(lastDirection, lineFollowTurnSpeed);
+                    break;
+            }
+            basic.pause(5);
+        }
+        car_stop();
+    }
+
+    //% block="---" blockHidden=true
+    //% block="Advanced Line Following with PID"
+    //% blockHidden=true
+    //% block.color=#3CB371
+    export function AdvancedLineFollowingHeader(): void { }
+
     //% block="Turn %direction until line detected at speed %speed"
     //% direction.defl=CarDirection.SpinLeft
     //% speed.min=0 speed.max=100 speed.defl=50
@@ -317,42 +341,6 @@ namespace asbit {
             car_run(direction, speed);
             basic.pause(10);
         }
-    }
-
-    //% block="do line following until %checkpoints checkpoints detected"
-    //% checkpoints.min=1 checkpoints.defl=1
-    //% weight=84 inlineInputMode=inline
-    //% block.color=#3CB371
-    export function lineFollowUntilCheckpoints(checkpoints: number): void {
-        let detectedCheckpoints = 0;
-        while (detectedCheckpoints < checkpoints) {
-            const l = pins.digitalReadPin(IR_LEFT);
-            const m = pins.digitalReadPin(IR_MIDDLE);
-            const r = pins.digitalReadPin(IR_RIGHT);
-            const state = (l << 2) | (m << 1) | r;
-
-            switch (state) {
-                case 1: car_run(CarDirection.SpinRight, lineFollowTurnSpeed); break;
-                case 2: car_run(CarDirection.Forward, lineFollowSpeed); break;
-                case 3: car_run(CarDirection.SpinRight, lineFollowTurnSpeed); break;
-                case 4: car_run(CarDirection.SpinLeft, lineFollowTurnSpeed); break;
-                case 5: moveWithSpeeds(CarDirection.Forward, lineFollowSpeed * 0.5, lineFollowSpeed * 0.5); break;
-                case 6: car_run(CarDirection.SpinLeft, lineFollowTurnSpeed); break;
-                case 7:
-                    detectedCheckpoints++;
-                    car_stop();
-                    basic.pause(500);
-                    break;
-                default:
-                    if (lastDirection === CarDirection.SpinRight)
-                        car_run(CarDirection.SpinRight, lineFollowTurnSpeed);
-                    else
-                        car_run(CarDirection.SpinLeft, lineFollowTurnSpeed);
-                    break;
-            }
-            basic.pause(5);
-        }
-        car_stop();
     }
 
     //% block="set %blackOrWhite calibration values left %left middle %middle right %right"
@@ -406,24 +394,39 @@ namespace asbit {
     //% block.color=#3CB371
     export function followLinePID(numCheckpoints: number): void {
         let checkpoints = 0;
+        // Reset PID integral and error on a new run
+        integral = 0;
+        lastError = 0;
         while (checkpoints < numCheckpoints) {
             const l = normalize(pins.analogReadPin(IR_LEFT_ANALOG), whiteLeft, blackLeft);
             const m = normalize(pins.analogReadPin(IR_MIDDLE_ANALOG), whiteMid, blackMid);
             const r = normalize(pins.analogReadPin(IR_RIGHT_ANALOG), whiteRight, blackRight);
             if (l > 0.8 && m > 0.8 && r > 0.8) {
-                if (checkpoints < numCheckpoints) {
-                    checkpoints++;
-                    car_stop();
-                    basic.pause(500);
-                }
+                // A checkpoint is a solid black line across all three sensors
+                checkpoints++;
+                // Stop to register the checkpoint
+                car_stop();
+                basic.pause(500);
+                // Reset PID values for a fresh start on the next line segment
+                integral = 0;
+                lastError = 0;
             }
             if (checkpoints >= numCheckpoints) break;
-            const pos = (l * -1 + r * 1) / (l + m + r + 0.001);
+
+            const pos = (r - l); // Error based on sensor difference
             const err = pos;
-            integral += err;
+            integral = clamp(integral + err, -100, 100); // Clamp integral to prevent windup
             const deriv = err - lastError;
             const corr = Kp * err + Ki * integral + Kd * deriv;
-            driveMotors(baseSpeed - corr, baseSpeed + corr);
+
+            let leftMotorSpeed = baseSpeed + corr;
+            let rightMotorSpeed = baseSpeed - corr;
+
+            // Clamp speeds to a valid range to prevent overshooting
+            leftMotorSpeed = clamp(leftMotorSpeed, minSpeed, maxSpeed);
+            rightMotorSpeed = clamp(rightMotorSpeed, minSpeed, maxSpeed);
+
+            driveMotors(leftMotorSpeed, rightMotorSpeed);
             lastError = err;
             basic.pause(10);
         }
@@ -448,6 +451,9 @@ namespace asbit {
         control.waitMicros(10);
         pins.digitalWritePin(ULTRASONIC_TRIG, 0);
         const d = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
+        if (d === 0) {
+            return 0;
+        }
         const cm = Math.round(d / 58);
         return cm > 0 ? cm : 0;
     }
