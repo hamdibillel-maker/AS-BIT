@@ -13,4 +13,6 @@
     "supportedTargets": [
         "microbit"
     ],
-   
+    "icon": "AS BLUE.png"
+}
+
