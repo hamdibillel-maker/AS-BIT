@@ -1,6 +1,6 @@
 {
     "name": "as bit",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "AS-BIT robot extension with car control, sensors, RGB, PID line following, ultrasonic, buzzer, and IR remote.",
     "dependencies": {
         "core": "*",
