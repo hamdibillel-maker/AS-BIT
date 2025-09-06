@@ -167,7 +167,6 @@ namespace asbit {
     //% speed.min=0 speed.max=100 speed.defl=80
     //% direction.defl=CarDirection.Forward
     //% weight=90 inlineInputMode=inline
-    //% block.color=#FF4500
     export function car_run(direction: CarDirection, speed: number = 80): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
         switch (direction) {
@@ -215,7 +214,6 @@ namespace asbit {
     //% direction.defl=CarDirection.Forward
     //% time.defl=1
     //% weight=89 inlineInputMode=inline
-    //% block.color=#FF4500
     export function car_run_for_time(direction: CarDirection, speed: number, time: number): void {
         car_run(direction, speed);
         basic.pause(time * 1000);
@@ -226,7 +224,6 @@ namespace asbit {
     //% direction.defl=SingleMotorDirection.Left
     //% speed.min=0 speed.max=100 speed.defl=80
     //% weight=88 inlineInputMode=inline
-    //% block.color=#FF4500
     export function runSingleMotor(direction: SingleMotorDirection, speed: number): void {
         const pwm = Math.map(speed, 0, 100, 0, 1023);
         if (direction === SingleMotorDirection.Left) {
@@ -240,21 +237,19 @@ namespace asbit {
 
     //% block="Car stop"
     //% weight=86 inlineInputMode=inline
-    //% block.color=#FF4500
     export function car_stop(): void {
         stopCar();
     }
 
     //% block="Stop all activities"
     //% weight=85
-    //% block.color=#FF4500
     export function stopAllActivities(): void {
         trackingActive = false;
         avoidanceActive = false;
         stopCar();
     }
 
-    // === Block Category Headers ===
+    // ---
     //% block="---" blockHidden=true
     //% block="Line Following"
     //% blockHidden=true
@@ -265,7 +260,6 @@ namespace asbit {
     //% speed.min=0 speed.max=100 speed.defl=80
     //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
     //% weight=85 inlineInputMode=inline
-    //% block.color=#3CB371
     export function setLineFollowerSpeeds(speed: number, turnSpeed: number): void {
         lineFollowSpeed = speed;
         lineFollowTurnSpeed = turnSpeed;
@@ -274,7 +268,6 @@ namespace asbit {
     //% block="do line following until %checkpoints checkpoints detected"
     //% checkpoints.min=1 checkpoints.defl=1
     //% weight=84 inlineInputMode=inline
-    //% block.color=#3CB371
     export function lineFollowUntilCheckpoints(checkpoints: number): void {
         let detectedCheckpoints = 0;
         while (detectedCheckpoints < checkpoints) {
@@ -329,7 +322,6 @@ namespace asbit {
     //% direction.defl=CarDirection.SpinLeft
     //% speed.min=0 speed.max=100 speed.defl=50
     //% weight=83
-    //% block.color=#3CB371
     export function turnUntilLine(direction: CarDirection, speed: number): void {
         while (true) {
             const value = pins.analogReadPin(IR_MIDDLE_ANALOG);
@@ -442,7 +434,6 @@ namespace asbit {
 
     //% block="Ultrasonic distance (cm)"
     //% weight=80 inlineInputMode=inline
-    //% block.color=#32CD32
     export function ultra(): number {
         pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
         pins.digitalWritePin(ULTRASONIC_TRIG, 0);
@@ -460,23 +451,27 @@ namespace asbit {
 
     //% block="Read %sensor IR sensor as %mode"
     //% weight=78 inlineInputMode=inline
-    //% block.color=#32CD32
     export function readIR(sensor: IRSensor, mode: ReadMode): number {
         const pin = sensor === IRSensor.Left ? IR_LEFT :
             sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
         return mode === ReadMode.Analog ? pins.analogReadPin(pin) : pins.digitalReadPin(pin);
     }
 
-    // === Block Category Headers ===
     //% block="---" blockHidden=true
     //% block="Activities"
     //% blockHidden=true
-    //% block.color=#FF4500
+    //% block.color=#FF8C00
     export function ActivitiesHeader(): void { }
+
+    //% block="Set RGB brightness to %brightness"
+    //% brightness.min=0 brightness.max=100 brightness.defl=100
+    //% weight=76 inlineInputMode=inline
+    export function setRgbBrightness(brightness: number): void {
+        rgbBrightness = Math.constrain(brightness, 0, 100);
+    }
 
     //% block="Set RGB color to %color"
     //% weight=75 inlineInputMode=inline
-    //% block.color=#FF4500
     export function setRgbColor(color: Color): void {
         const pwm = Math.map(rgbBrightness, 0, 100, 0, 1023);
         switch (color) {
@@ -523,14 +518,6 @@ namespace asbit {
         }
     }
 
-    //% block="Set RGB brightness to %brightness"
-    //% brightness.min=0 brightness.max=100 brightness.defl=100
-    //% weight=76 inlineInputMode=inline
-    //% block.color=#FF4500
-    export function setRgbBrightness(brightness: number): void {
-        rgbBrightness = Math.constrain(brightness, 0, 100);
-    }
-
     /**
      * Set default speed and distance for tracking and obstacle avoidance.
      */
@@ -540,7 +527,6 @@ namespace asbit {
     //% distance.min=5 distance.defl=15
     //% weight=95
     //% inlineInputMode=inline
-    //% block.color=#FF4500
     export function setActivityDefaults(speed: number, distance: number): void {
         activitySpeed = speed;
         activityDistance = distance;
@@ -551,7 +537,6 @@ namespace asbit {
      */
     //% block="Tracking mode"
     //% weight=90
-    //% block.color=#FF4500
     export function startTracking(): void {
         if (trackingActive || avoidanceActive) return;
         trackingActive = true;
@@ -579,7 +564,6 @@ namespace asbit {
      */
     //% block="Avoid obstacles"
     //% weight=85
-    //% block.color=#FF4500
     export function startAvoidObstacles(): void {
         if (avoidanceActive || trackingActive) return;
         avoidanceActive = true;
@@ -612,7 +596,6 @@ namespace asbit {
     //% button.defl=ir.eButton.Power
     //% subcategory="IR Remote Control"
     //% weight=100
-    //% block.color=#B8860B
     export function onIrButtonPressed(button: ir.eButton, handler: () => void): void {
         ir.onPressEvent(button, handler);
     }
