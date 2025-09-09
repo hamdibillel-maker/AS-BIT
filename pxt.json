@@ -1,10 +1,9 @@
 {
-    "name": "as bit",
-    "version": "2.0.3",
+    "name": "AS BIT",
+    "version": "1.0.0",
     "description": "AS-BIT robot extension with car control, sensors, RGB, PID line following, ultrasonic, buzzer, and IR remote.",
     "dependencies": {
-        "core": "*",
-        "makerbit-ir": "github:1010Technologies/pxt-makerbit-ir-receiver"
+        "core": "*"
     },
     "files": [
         "main.ts"
