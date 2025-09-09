@@ -27,9 +27,6 @@ namespace asbit {
     const RGB_GREEN = DigitalPin.P4;
     const RGB_BLUE = DigitalPin.P3;
 
-    // === IR Receiver Pin ===
-    const IR_RECEIVER_PIN = DigitalPin.P6;
-
     // === Internal: brightness control ===
     let rgbBrightness = 100; // Default brightness
 
@@ -54,13 +51,12 @@ namespace asbit {
     let activitySpeed = 100;
     let activityDistance = 15;
 
-    // === Auto-setup: Sound → PIN9, RGB off, IR on P6 ===
+    // === Auto-setup: Sound → PIN9, RGB off ===
     control.onEvent(1, 1, () => {
         pins.setAudioPin(BUZZER_PIN);
         pins.analogWritePin(RGB_RED, 0);
         pins.analogWritePin(RGB_GREEN, 0);
         pins.analogWritePin(RGB_BLUE, 0);
-        ir.setIrPin(IR_RECEIVER_PIN);
     });
 
     // === Enums ===
@@ -241,15 +237,39 @@ namespace asbit {
         stopCar();
     }
 
-    //% block="Stop all activities"
-    //% weight=85
-    export function stopAllActivities(): void {
-        trackingActive = false;
-        avoidanceActive = false;
-        stopCar();
+    //% block="---" blockHidden=true
+    //% block="Sensors"
+    //% blockHidden=true
+    //% block.color=#32CD32
+    export function SensorsHeader(): void { }
+
+    //% block="Ultrasonic distance (cm)"
+    //% weight=80 inlineInputMode=inline
+    //% subcategory="Sensors"
+    export function ultra(): number {
+        pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
+        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
+        control.waitMicros(2);
+        pins.digitalWritePin(ULTRASONIC_TRIG, 1);
+        control.waitMicros(10);
+        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
+        const d = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
+        if (d === 0) {
+            return 0;
+        }
+        const cm = Math.round(d / 58);
+        return cm > 0 ? cm : 0;
     }
 
-    // ---
+    //% block="Read %sensor IR sensor as %mode"
+    //% weight=78 inlineInputMode=inline
+    //% subcategory="Sensors"
+    export function readIR(sensor: IRSensor, mode: ReadMode): number {
+        const pin = sensor === IRSensor.Left ? IR_LEFT :
+            sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
+        return mode === ReadMode.Analog ? pins.analogReadPin(pin) : pins.digitalReadPin(pin);
+    }
+
     //% block="---" blockHidden=true
     //% block="Line Following"
     //% blockHidden=true
@@ -425,53 +445,32 @@ namespace asbit {
         car_stop();
     }
 
-    // === Block Category Headers ===
-    //% block="---" blockHidden=true
-    //% block="Sensors"
-    //% blockHidden=true
-    //% block.color=#32CD32
-    export function SensorsHeader(): void { }
-
-    //% block="Ultrasonic distance (cm)"
-    //% weight=80 inlineInputMode=inline
-    export function ultra(): number {
-        pins.setPull(ULTRASONIC_TRIG, PinPullMode.PullNone);
-        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
-        control.waitMicros(2);
-        pins.digitalWritePin(ULTRASONIC_TRIG, 1);
-        control.waitMicros(10);
-        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
-        const d = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
-        if (d === 0) {
-            return 0;
-        }
-        const cm = Math.round(d / 58);
-        return cm > 0 ? cm : 0;
-    }
-
-    //% block="Read %sensor IR sensor as %mode"
-    //% weight=78 inlineInputMode=inline
-    export function readIR(sensor: IRSensor, mode: ReadMode): number {
-        const pin = sensor === IRSensor.Left ? IR_LEFT :
-            sensor === IRSensor.Middle ? IR_MIDDLE : IR_RIGHT;
-        return mode === ReadMode.Analog ? pins.analogReadPin(pin) : pins.digitalReadPin(pin);
-    }
-
     //% block="---" blockHidden=true
     //% block="Activities"
     //% blockHidden=true
     //% block.color=#FF8C00
     export function ActivitiesHeader(): void { }
 
+    //% block="Stop all activities"
+    //% weight=99
+    //% subcategory="Activities"
+    export function stopAllActivities(): void {
+        trackingActive = false;
+        avoidanceActive = false;
+        stopCar();
+    }
+
     //% block="Set RGB brightness to %brightness"
     //% brightness.min=0 brightness.max=100 brightness.defl=100
     //% weight=76 inlineInputMode=inline
+    //% subcategory="Activities"
     export function setRgbBrightness(brightness: number): void {
         rgbBrightness = Math.constrain(brightness, 0, 100);
     }
 
     //% block="Set RGB color to %color"
     //% weight=75 inlineInputMode=inline
+    //% subcategory="Activities"
     export function setRgbColor(color: Color): void {
         const pwm = Math.map(rgbBrightness, 0, 100, 0, 1023);
         switch (color) {
@@ -527,6 +526,7 @@ namespace asbit {
     //% distance.min=5 distance.defl=15
     //% weight=95
     //% inlineInputMode=inline
+    //% subcategory="Activities"
     export function setActivityDefaults(speed: number, distance: number): void {
         activitySpeed = speed;
         activityDistance = distance;
@@ -537,6 +537,7 @@ namespace asbit {
      */
     //% block="Tracking mode"
     //% weight=90
+    //% subcategory="Activities"
     export function startTracking(): void {
         if (trackingActive || avoidanceActive) return;
         trackingActive = true;
@@ -564,6 +565,7 @@ namespace asbit {
      */
     //% block="Avoid obstacles"
     //% weight=85
+    //% subcategory="Activities"
     export function startAvoidObstacles(): void {
         if (avoidanceActive || trackingActive) return;
         avoidanceActive = true;
@@ -583,20 +585,5 @@ namespace asbit {
             }
             car_stop();
         });
-    }
-
-    // === IR Remote Control Blocks ===
-    //% block="---" blockHidden=true
-    //% block="IR Remote Control"
-    //% blockHidden=true
-    //% block.color=#B8860B
-    export function IrHeader(): void { }
-
-    //% block="on IR button %button|pressed"
-    //% button.defl=ir.eButton.Power
-    //% subcategory="IR Remote Control"
-    //% weight=100
-    export function onIrButtonPressed(button: ir.eButton, handler: () => void): void {
-        ir.onPressEvent(button, handler);
     }
 }
