@@ -30,11 +30,6 @@ namespace asbit {
     // === Internal: brightness control ===
     let rgbBrightness = 100; // Default brightness
 
-    // === Global variables for Line Follower speeds ===
-    let lineFollowSpeed = 80;
-    let lineFollowTurnSpeed = 50;
-    let lastDirection: CarDirection = CarDirection.Forward;
-
     // === PID Line Follower global variables ===
     let blackLeft = 900, blackMid = 900, blackRight = 900;
     let whiteLeft = 100, whiteMid = 100, whiteRight = 100;
@@ -112,6 +107,11 @@ namespace asbit {
         //% block="right"
         Right,
     }
+
+    // === Global variables for Line Follower speeds (MOVED HERE) ===
+    let lineFollowSpeed = 80;
+    let lineFollowTurnSpeed = 50;
+    let lastDirection: CarDirection = CarDirection.Forward; // Fixed reference
 
     // --- Helper function to stop the car ---
     function stopCar(): void {
