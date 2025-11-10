@@ -108,6 +108,14 @@ namespace asbit {
         Right,
     }
 
+    // New enum to restrict direction to only spin left/right for line detection
+    export enum SpinTurnDirection {
+        //% block="spin left"
+        SpinLeft = CarDirection.SpinLeft,
+        //% block="spin right"
+        SpinRight = CarDirection.SpinRight,
+    }
+
     // === Global variables for Line Follower speeds (MOVED HERE) ===
     let lineFollowSpeed = 80;
     let lineFollowTurnSpeed = 50;
@@ -270,7 +278,7 @@ namespace asbit {
     //% block.color=#3CB371
     export function LineFollowingHeader(): void { }
 
-    // === Line Following Category ===
+    // === Line Following Category (Simple/Digital) ===
     //% block="Set line follower speed to %speed and turn speed to %turnSpeed"
     //% speed.min=0 speed.max=100 speed.defl=80
     //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
@@ -331,20 +339,14 @@ namespace asbit {
         car_stop();
     }
 
-    //% block="---" blockHidden=true
-    //% block="Advanced Line Following with PID"
-    //% blockHidden=true
-    //% block.color=#3CB371
-    export function AdvancedLineFollowingHeader(): void { }
-
-    // === Advanced Line Following with PID Category (Moved to Line Following category) ===
+    // === Advanced Line Following with PID Category ===
     //% block="Turn %direction until line detected at speed %speed"
-    //% direction.defl=CarDirection.SpinLeft
+    //% direction.defl=SpinTurnDirection.SpinLeft
     //% speed.min=0 speed.max=100 speed.defl=50
     //% weight=83
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
-    export function turnUntilLine(direction: CarDirection, speed: number): void {
+    export function turnUntilLine(direction: SpinTurnDirection, speed: number): void {
         while (true) {
             const value = pins.analogReadPin(IR_MIDDLE_ANALOG);
             const isOnLine = value < (blackMid + whiteMid) / 2;
@@ -352,14 +354,15 @@ namespace asbit {
                 car_stop();
                 break;
             }
-            car_run(direction, speed);
+            // Use TypeScript type assertion for enum compatibility
+            car_run(direction as any as CarDirection, speed);
             basic.pause(10);
         }
     }
 
     //% block="set %blackOrWhite calibration values left %left middle %middle right %right"
     //% left.defl=100 middle.defl=100 right.defl=100
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
     export function setCalibration(blackOrWhite: BlackOrWhite, left: number, middle: number, right: number): void {
         if (blackOrWhite == BlackOrWhite.Black) {
@@ -371,7 +374,7 @@ namespace asbit {
 
     //% block="auto-calibrate IR sensors"
     //% weight=80
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
     export function autoCalibrate(): void {
         basic.pause(2000);
@@ -387,7 +390,7 @@ namespace asbit {
 
     //% block="set PID values Kp %p Ki %i Kd %d"
     //% p.defl=0.6 i.defl=0.0 d.defl=2.0
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
     export function setPID(p: number, i: number, d: number): void {
         Kp = p; Ki = i; Kd = d;
@@ -395,14 +398,14 @@ namespace asbit {
 
     //% block="set speed min %min base %base max %max"
     //% min.defl=20 base.defl=50 max.defl=100
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
     export function setSpeed(min: number, base: number, max: number): void {
         minSpeed = min; baseSpeed = base; maxSpeed = max;
     }
 
     //% block="show IR sensor readings"
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
     export function showSensorReadings(): void {
         serial.writeLine(`L: ${pins.analogReadPin(IR_LEFT_ANALOG)} M: ${pins.analogReadPin(IR_MIDDLE_ANALOG)} R: ${pins.analogReadPin(IR_RIGHT_ANALOG)}`);
@@ -410,7 +413,7 @@ namespace asbit {
 
     //% block="follow line with PID until %numCheckpoints checkpoints"
     //% numCheckpoints.defl=1
-    //% subcategory="Line Following"
+    //% subcategory="Advanced Line Following using PID"
     //% block.color=#3CB371
     export function followLinePID(numCheckpoints: number): void {
         let checkpoints = 0;
