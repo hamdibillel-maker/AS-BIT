@@ -1,0 +1,8 @@
+node_modules/
+built/
+dist/
+.yotta.json
+.pxt/
+.vscode/
+*.log
+.DS_Store
