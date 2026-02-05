@@ -1,0 +1,12 @@
+{
+  "name": "AS BIT",
+  "version": "1.0.0",
+  "description": "micro:bit MakeCode extension",
+  "license": "MIT",
+  "dependencies": {
+    "core": "*"
+  },
+  "files": [
+    "main.ts"
+  ]
+}
