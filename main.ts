@@ -25,6 +25,13 @@ namespace RobotControl {
         Right
     }
 
+    export enum MotorDirection {
+        //% block="forward"
+        Forward,
+        //% block="backward"
+        Backward
+    }
+
     export enum MotorSide {
         //% block="left"
         Left,
@@ -42,7 +49,7 @@ namespace RobotControl {
     /**
      * Control the car direction with speed (0-100)
      */
-    //% block="move car %dir with speed %speed%"
+    //% block="move car %dir with speed %speed"
     //% speed.min=0 speed.max=100
     //% color="#249ed1"
     //% weight=100
@@ -74,7 +81,7 @@ namespace RobotControl {
     /**
      * Move car for specific time in seconds
      */
-    //% block="move car %dir with speed %speed% for %sec seconds"
+    //% block="move car %dir with speed %speed for %sec seconds"
     //% speed.min=0 speed.max=100
     //% color="#249ed1"
     //% weight=95
@@ -91,10 +98,10 @@ namespace RobotControl {
     //% speed.min=0 speed.max=100
     //% color="#249ed1"
     //% weight=90
-    export function individualMotor(side: MotorSide, dir: Direction, speed: number): void {
+    export function individualMotor(side: MotorSide, dir: MotorDirection, speed: number): void {
         let mappedSpeed = Math.map(speed, 0, 100, 0, 1023)
         if (side == MotorSide.Left) {
-            if (dir == Direction.Forward) {
+            if (dir == MotorDirection.Forward) {
                 pins.analogWritePin(AnalogPin.P0, mappedSpeed)
                 pins.analogWritePin(AnalogPin.P1, 0)
             } else {
@@ -102,7 +109,7 @@ namespace RobotControl {
                 pins.analogWritePin(AnalogPin.P1, mappedSpeed)
             }
         } else {
-            if (dir == Direction.Forward) {
+            if (dir == MotorDirection.Forward) {
                 pins.analogWritePin(AnalogPin.P2, mappedSpeed)
                 pins.analogWritePin(AnalogPin.P8, 0)
             } else {
