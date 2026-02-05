@@ -42,7 +42,7 @@ namespace RobotControl {
     /**
      * Control the car direction with speed (0-100)
      */
-    //% block="move car %dir with speed %speed"
+    //% block="move car %dir with speed %speed%"
     //% speed.min=0 speed.max=100
     //% color="#249ed1"
     //% weight=100
@@ -74,7 +74,7 @@ namespace RobotControl {
     /**
      * Move car for specific time in seconds
      */
-    //% block="move car %dir with speed %speed for %sec seconds"
+    //% block="move car %dir with speed %speed% for %sec seconds"
     //% speed.min=0 speed.max=100
     //% color="#249ed1"
     //% weight=95
